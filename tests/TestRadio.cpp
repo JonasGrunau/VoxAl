@@ -99,7 +99,7 @@ namespace
         int lat = 0;
         const auto y = run ({ v.mono, v.mono }, fs, s, 64, &lat);
         const auto out = aligned (y.left, lat);
-        return maxMomentaryLufs (out, out, fs) - maxMomentaryLufs (v.mono, v.mono, fs);
+        return integratedLufs ({ out, out }, fs) - integratedLufs ({ v.mono, v.mono }, fs);
     }
 } // namespace
 
@@ -287,9 +287,9 @@ TEST_CASE ("Radio: the voice's loudness holds across the knob and Tone", "[radio
         CHECK (std::abs (change) <= 1.0);
     }
 
-    // The makeup is one law for every voice (a speech spectrum's), so other
-    // voices land around it: a higher voice (formants +15 %, 220 Hz) and a
-    // low one with softer esses, within 2 dB.
+    // The makeup is one law for every voice (a speech spectrum's); the trim
+    // brings other voices back too: a higher voice (formants +15 %, 220 Hz)
+    // and a low one with softer esses.
     for (int which = 0; which < 2; ++which)
     {
         synth::Options p = o;
@@ -303,9 +303,63 @@ TEST_CASE ("Radio: the voice's loudness holds across the knob and Tone", "[radio
             {
                 const double change = loudnessChange (w, fs, radioSettings (knob, tone));
                 INFO ((which == 0 ? "higher" : "lower") << " voice, Radio " << knob << " %, Tone " << tone << ": " << change << " LU");
-                CHECK (std::abs (change) <= 2.0);
+                CHECK (std::abs (change) <= 1.0);
             }
     }
+}
+
+TEST_CASE ("Radio: the trim brings a boomy voice back, and holds it through a pause", "[radio][loudness]")
+{
+    // A low voice with a +12 dB boom at 150 Hz: most of its loudness lies
+    // under the band, so the speech spectrum's makeup alone leaves it far too
+    // quiet (the control: the design's linear response, filtered offline).
+    // Two phrases 4 s apart: the second starts where the first ended.
+    const double fs = 48000.0;
+    synth::Options o;
+    o.fs = fs;
+    o.seconds = 4.0;
+    o.f0 = 100.0;
+    o.boomHz = 150.0;
+    o.boomDb = 12.0;
+    o.sibilanceDb = -14.0;
+    o.seed = 11;
+    const auto phrase = synth::make (o).mono;
+    const size_t gap = (size_t) (4.0 * fs), second = phrase.size() + gap;
+    Signal v (phrase);
+    v.resize (second, 0.f);
+    v.insert (v.end(), phrase.begin(), phrase.end());
+
+    const auto d = voc::Radio::design (1.0, 0.0);
+    size_t n = 1;
+    while (n < phrase.size() + 8192) n <<= 1;
+    std::vector<cplx> z (n);
+    for (size_t i = 0; i < phrase.size(); ++i) z[i] = phrase[i];
+    fft (z);
+    for (size_t k = 0; k <= n / 2; ++k)
+    {
+        z[k] *= voc::Radio::response (d, std::max (1.0, fs * (double) k / (double) n));
+        if (k > 0 && k < n / 2) z[n - k] = std::conj (z[k]);
+    }
+    fft (z, true);
+    Signal fixed (phrase.size());
+    for (size_t i = 0; i < fixed.size(); ++i) fixed[i] = (float) z[i].real();
+    const double dry = integratedLufs ({ phrase, phrase }, fs);
+    const double makeupOnly = integratedLufs ({ fixed, fixed }, fs) - dry;
+
+    int lat = 0;
+    const auto y = run ({ v, v }, fs, radioSettings (100.0), 64, &lat);
+    const auto out = aligned (y.left, lat);
+    const Stereo o2 { out, out }, v2 { v, v };
+    const double first = integratedLufs (o2, fs, 0, phrase.size()) - dry;
+    const double secondAll = integratedLufs (o2, fs, second, out.size()) - dry;
+    const auto start = (size_t) (0.6 * fs);   // the second phrase's first 0.6 s
+    const double secondStart = integratedLufs (o2, fs, second, second + start) - integratedLufs (v2, fs, second, second + start);
+    INFO ("makeup alone " << makeupOnly << " LU; trimmed: first phrase " << first << ", second " << secondAll
+                          << ", its first 0.6 s " << secondStart << " LU");
+    CHECK (makeupOnly < -3.0);
+    CHECK (std::abs (first) <= 1.0);
+    CHECK (std::abs (secondAll) <= 0.5);
+    CHECK (std::abs (secondStart) <= 0.75);
 }
 
 TEST_CASE ("Radio: no noise is added, silence stays silence", "[radio]")

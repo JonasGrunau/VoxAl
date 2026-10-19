@@ -25,6 +25,11 @@ namespace
     constexpr double kQ1 = 0.54119610, kQ2 = 1.30656296;   // Butterworth's pair for 24 dB/oct
     constexpr double kAttenuationDb = 120.0;     // the half-bands' stopband
     constexpr double kHalfPower = 3.0102999566;
+    // The voice's trim: averages over this much voice, its glide, its range,
+    // and the K-weighted level (a 20 ms envelope) under which it holds.
+    constexpr double kTrimSeconds = 3.0, kTrimGlideSeconds = 0.25, kTrimMaxDb = 9.0;
+    constexpr double kTrimGatePower = 3.16e-6, kTrimEnvelopeSeconds = 0.02;   // -55 dB
+    const double kTrimMax = std::pow (10.0, kTrimMaxDb / 20.0);
 
     // log2 (f) through the three Tone anchors on a parabola: smooth, monotonic.
     double toneLaw (const double (&a)[3], double tone) noexcept
@@ -299,6 +304,44 @@ double Radio::Shaper::process (double x) noexcept
     return y;
 }
 
+// ---- The voice's trim ----------------------------------------------------------------------
+
+void Radio::Trim::prepare (double fs) noexcept
+{
+    dry.prepare (fs);
+    wet.prepare (fs);
+    const auto pole = [fs] (double seconds) { return 1.0 - std::exp (-1.0 / (seconds * fs)); };
+    envelope = pole (kTrimEnvelopeSeconds);
+    average = pole (kTrimSeconds);
+    glide = pole (kTrimGlideSeconds);
+    clear();
+}
+
+void Radio::Trim::clear() noexcept
+{
+    dry.reset();
+    wet.reset();
+    gate = dryPower = wetPower = 0.0;
+    gain = 1.0;
+    heard = 0;
+}
+
+double Radio::Trim::next (double dryIn, double wetIn) noexcept
+{
+    const double d = dry.process (dryIn), w = wet.process (wetIn);
+    gate += envelope * (d * d - gate);
+    if (gate > kTrimGatePower)
+    {
+        // A plain mean over the voice heard so far, a running one after 3 s.
+        const double c = std::max (average, 1.0 / (double) ++heard);
+        dryPower += c * (d * d - dryPower);
+        wetPower += c * (w * w - wetPower);
+    }
+    const double want = wetPower > 0.0 ? std::clamp (std::sqrt (dryPower / wetPower), 1.0 / kTrimMax, kTrimMax) : 1.0;
+    gain += glide * (want - gain);
+    return gain;
+}
+
 // ---- The module -------------------------------------------------------------------------
 
 void Radio::prepare (double sampleRate, int)
@@ -328,6 +371,7 @@ void Radio::prepare (double sampleRate, int)
     for (auto* sm : { &lgHp, &lgLp, &lgBell, &bellDb, &lgDrive, &makeupDb })
         sm->prepare (fs, 0.02);
     engage.prepare (fs, 0.02);
+    trim.prepare (fs);
     reset();
 }
 
@@ -380,6 +424,8 @@ void Radio::start() noexcept
     lgDrive.snap (lgDrive.getTarget());
     makeupDb.snap (makeupDb.getTarget());
     shown.fill (std::numeric_limits<double>::quiet_NaN());
+    trim.clear();
+    trimFrom = now + lat;
     running = true;
     fadeFrom = now + warm;
 }
@@ -499,6 +545,12 @@ void Radio::process (float* left, float* right, int numSamples, const Block&) no
         }
         float w0, w1;
         wet (x0, x1, w0, w1);
+        if (now >= trimFrom)
+        {
+            const double g = trim.next (0.5 * ((double) d0 + d1), 0.5 * ((double) w0 + w1));
+            w0 = (float) (g * w0);
+            w1 = (float) (g * w1);
+        }
         engage.setOn (want && now >= fadeFrom);
         if (engage.isOff())
         {
@@ -527,6 +579,8 @@ void Radio::copySmallState (const Module& from) noexcept
     drive = o.drive;
     norm = o.norm;
     makeup = o.makeup;
+    trim = o.trim;
+    trimFrom = o.trimFrom;
     target = o.target;
     setRadio = o.setRadio;
     setTone = o.setTone;

@@ -150,14 +150,11 @@ namespace
         voc::P knob;
         double loudnessLu;   // how far the loudness may move across the knob; 0: not checked
     };
-    // DELAY and REVERB add their echoes on purpose. RADIO's makeup is fixed
-    // per knob from a standard speech spectrum; the synthetic voice keeps
-    // less of itself inside the telephone band (-2.1 LU at 100 %, real
-    // speech ~0, see the preset notes in Presets.cpp).
+    // DELAY and REVERB add their echoes on purpose.
     constexpr Hero kHeroes[] = {
         { voc::P::clean, 1.5 }, { voc::P::breath, 1.5 }, { voc::P::shiftMix, 1.5 }, { voc::P::smooth, 1.5 },
         { voc::P::comp, 1.5 }, { voc::P::warmth, 1.5 }, { voc::P::deess, 1.5 }, { voc::P::air, 1.5 },
-        { voc::P::radio, 2.5 }, { voc::P::doubler, 1.5 }, { voc::P::delayMix, 0.0 }, { voc::P::reverbMix, 0.0 },
+        { voc::P::radio, 1.5 }, { voc::P::doubler, 1.5 }, { voc::P::delayMix, 0.0 }, { voc::P::reverbMix, 0.0 },
     };
 
     // x through the chain with `move` setting the knobs before every block.
@@ -215,7 +212,9 @@ TEST_CASE ("Sweeps: the loudness holds across every one-knob module's range in t
         {
             INFO (voc::info (h.knob).id << " at " << amount << " %");
             const auto y = automate (x, [&] (size_t, voc::Settings& s) { s[h.knob] = amount; });
-            CHECK (std::abs (integratedLufs (y, kFs, skip) - dry) <= h.loudnessLu);
+            const double change = integratedLufs (y, kFs, skip) - dry;
+            INFO (change << " LU");
+            CHECK (std::abs (change) <= h.loudnessLu);
         }
     }
 }

@@ -2,6 +2,7 @@
 
 #include "Module.h"
 #include "dsp/Eq.h"
+#include "dsp/Loudness.h"
 #include "dsp/RingBuffer.h"
 #include "dsp/Smoother.h"
 #include "dsp/Svf.h"
@@ -48,10 +49,20 @@ namespace voc
 //     harmonics above the band and its DC are filtered as a speaker would);
 //   - makeup: a fixed gain per knob position that holds a speech spectrum's
 //     K-weighted loudness (ANSI S3.5's standard speech spectrum, BS.1770
-//     weighting), so it is the same in every bounce and the response stays
-//     what it measures (the bell gives back much of what the band takes: at
-//     full the makeup is -0.7 dB at Tone -100, +0.1 at 0, +2.2 at +100). No
-//     noise is added: silence stays silence.
+//     weighting; the bell gives back much of what the band takes: at full
+//     the makeup is -0.7 dB at Tone -100, +0.1 at 0, +2.2 at +100), then a
+//     slow trim for this voice: real voices sit -7 to +3 dB around the
+//     standard spectrum at full (a boomy speaker loses more to the band, a
+//     bright singer gains from the bell). The trim matches the wet path's
+//     K-weighted power to the delayed dry's, both averaged over 3 s of
+//     voice (a plain mean until then, so it settles in the first phrase;
+//     quieter than -55 dB counts as a pause and holds it), glides 0.25 s,
+//     and stays within +-9 dB. A small impulse never reaches it, so the
+//     response stays what it measures. At the same loudness a band-limited
+//     voice peaks higher (its body was the low harmonics; what is left is
+//     the glottal pulses through the bell): +2 to +5 dB at full on most
+//     voices, up to +9 dB on a deep close one. Nothing limits it. No noise
+//     is added: silence stays silence.
 // Inside, the high-passes and the bell are TPT SVFs; the low-passes are
 // matched to their analog prototypes up to Nyquist (Eq.h), and three taps
 // after the shaper undo its ADAA's two-sample mean, so the whole response is
@@ -140,6 +151,19 @@ private:
         double v1 = 0.0, v2 = 0.0;   // the shaper's last two outputs, for its compensation
     };
 
+    // The voice's trim on top of the makeup (both mono sums in, the gain out).
+    struct Trim
+    {
+        dsp::KWeighting dry, wet;
+        double gate = 0.0, envelope = 0.0, average = 0.0, glide = 0.0;   // coefficients, the envelope's
+        double dryPower = 0.0, wetPower = 0.0, gain = 1.0;
+        int64_t heard = 0;   // samples of voice so far
+
+        void prepare (double fs) noexcept;
+        void clear() noexcept;
+        double next (double dryIn, double wetIn) noexcept;
+    };
+
     void start() noexcept;
     void updateCoefficients() noexcept;
     double chain (Channel& c, double x) noexcept;
@@ -155,6 +179,8 @@ private:
     dsp::SvfCoeffs hpA, hpB, bell;
     dsp::EqSvf lpA, lpB;
     double bellMix = 0.0, drive = 0.05, norm = 1.0, makeup = 1.0;
+    Trim trim;
+    int64_t trimFrom = 0;   // the wet path's first whole sample
 
     // Targets (the design for the knobs) and their per-sample glides.
     Design target;
