@@ -2,7 +2,7 @@
 
 A whole vocal chain in one plugin, built for psytrance vocals: clean-up, de-breath, compression, saturation, de-essing, air, a radio voice, a doubler, pitch and formant shifting, a ducked tempo delay and a reverb. Most modules are one knob: the plugin finds what to fix and the knob says how much. Drag the cards into any order; the default order is the one a mix engineer would patch.
 
-*Work in progress.* SHIFT and SMOOTH work; the other modules pass the voice through untouched until their milestone lands, and the editor is a placeholder until the real UI arrives.
+*Work in progress.* Every module works; the editor is a placeholder until the real UI lands, and the factory presets come with it.
 
 ```
 in ─┬─ CLEAN ─ BREATH ─ SHIFT ─ SMOOTH ─ COMP ─ WARMTH ─ DE-ESS ─ AIR ─ RADIO ─ DOUBLE ─ DELAY ─ REVERB ─┐ wet
@@ -16,14 +16,49 @@ VST3 and Audio Unit for macOS (universal), VST3 for Windows. JUCE 8. An optional
 
 | Module | Knob | What it does |
 |--------|------|--------------|
+| **CLEAN** | **Clean** | Takes out what a voice doesn't need below its body: rumble under the lowest note, a boomy or muddy resonance that stays at one pitch whatever you sing, and the thump of a plosive. 0 = off. |
+| | **Focus** | Auto: Vocanal listens for 6 s of voice, then holds what it learned (the corner and the two cuts show in the panel). Manual: the values stay where you set them. **Re-learn** listens again. |
+| | **High-Pass** | Switches the rumble filter on or off (it sits at 0.7 × the voice's lowest notes). |
+| **BREATH** | **Breath** | Turns breaths down, up to 24 dB, and nothing else: quiet singing, a soft /h/ and the ends of words stay. 0 = off. |
+| | **Listen** | Plays only what Breath takes away. |
 | **SHIFT** | **Mix** | Blends the shifted voice with the dry one (equal power: a harmony at 50 % is as loud as either alone). 0 = off. |
 | | **Pitch** | −12 … +12 semitones. |
 | | **Formant** | −12 … +12 semitones, on its own. At 0 the vowels stay where they were whatever the pitch; Formant = Pitch is the classic sped-up-tape voice. |
 | **SMOOTH** | **Smooth** | Takes out harshness: resonant peaks and harsh bands that stick out of their neighbourhood, mostly between 2 and 8 kHz, as they happen. 0 = off. The loudness stays where it was. |
 | | **Sharpness** | How narrow the cuts are: from about 3/4 octave down to 1/6 octave up high (wider below 1 kHz). |
 | | **Listen** | Plays only what Smooth takes away. |
+| **COMP** | **Comp** | One-knob vocal compression: a fast peak stage for the consonants and an optical-style leveller for the body. It learns the take's loudness first, so it does the same to a quiet and a loud recording, and the loudness stays where it was across the knob. 0 = off. **Re-learn** listens again. |
+| **WARMTH** | **Warmth** | Tube/tape saturation: a warm 2nd harmonic first, the 3rd joining as you turn up. The colour follows the knob, not the input level, and the loudness stays put. 0 = off. |
+| **DE-ESS** | **De-ess** | Finds the esses itself and cuts them, up to 16 dB, with 6 ms of lookahead so even their first moments are caught. Bright vowels and whistles are left alone. 0 = off. |
+| | **Focus** | Auto: the band's centre is learned from your esses (3-12 kHz) and held. Manual: it stays where you set it. |
+| | **Listen** | Plays only what De-ess takes away. |
+| **AIR** | **Air** | Opens up the top: two gentle shelves (3.2 and 10 kHz) that lift quiet highs and leave loud ones (esses, harsh peaks) alone, only while the voice sounds. Up to +10 dB. 0 = off. |
+| | **Tone** | Shares the lift: −100 all at 3.2 kHz, +100 all at 10 kHz. |
+| **RADIO** | **Radio** | From the whole voice to a small-speaker radio or telephone: the band narrows to 300 Hz-3.4 kHz, a speaker resonance and a little drive come in. The loudness stays put. 0 = off. |
+| | **Tone** | Moves the band: down is a darker, boxier AM radio (250 Hz-2.8 kHz), up a thinner phone (500 Hz-4.5 kHz). |
+| **DOUBLE** | **Double** | Two artificial double-tracks a few cents and 16-27 ms off the voice, drifting like real takes. They go into the sides only, so the mono sum is exactly the dry voice. 0 = off. |
+| | **Width** | How wide the doubles sit. |
+| **DELAY** | **Mix** | The echoes' level; the dry voice stays at full. 0 = off. |
+| | **Mode** | Tape (warm repeats that darken, wow and flutter), BBD (dark bucket-brigade echoes with hiss), Digital (clean up to 8 kHz), Clean (every repeat exactly like the first), Lo-Fi (a narrow, gritty band). |
+| | **Style** | Mono, Ping-Pong (left, right, left...), Dual (the right side on a partner note: 1/8 against 1/8D, and so on). |
+| | **Sync** / **Note** / **Time** | Synced to the host tempo (1/64 to 1/1, straight, dotted and triplet), or free in ms (up to 4 s). Time changes glide like tape. |
+| | **Feedback** | 0-100 %; at 100 % the echoes keep going, held in check by the mode's saturation. |
+| | **Duck** | Pulls the echoes (and the repeats) down while the voice, or the Duck Key, is loud, and lets them back up in the gaps. |
+| | **Diffuse** | Smears each echo, from a slight blur to a wash about 100 ms wide. |
+| | **Low Cut** / **High Cut** | Filters every repeat. |
+| | **Age** | The mode's wear: wow and flutter, hiss, warble, a narrower band. 0 = none. |
+| **REVERB** | **Mix** | The reverb's level; the dry voice stays at full. 0 = off. |
+| | **Mode** | Hall, Bright Hall, Plate, Smooth Plate, Room, Chamber, Ambience. |
+| | **Colour** | 70s (a darker, grainier early digital box), 80s, Now (clean and flat). A change lets the old tail ring out. |
+| | **Decay** | 0.2-20 s, the mid-band RT60. |
+| | **Size** | The space's size, decay kept. |
+| | **Pre-delay** | 0-250 ms before the reverb starts. |
+| | **Low Cut** / **High Cut** | Filters the reverb's output. |
+| | **Mod** | How much the tail moves (chorus-like shimmer). |
+| | **Duck** | Pulls the reverb down while the voice, or the Duck Key, is loud. |
 | **Global** | **Mix** | Dry/wet of the whole chain. |
 | | **Output** | −24 … +12 dB. |
+| | **Duck Key** | Voice: DELAY and REVERB duck to the voice. Sidechain: to whatever feeds the sidechain input (a beat, a lead). |
 | | **Quality** / **Render Quality** | Normal or High. Bounces use Render Quality (High by default); the latency is the same in both. |
 
 With every knob at its default the voice passes bit for bit, delayed by the plugin's latency (fixed per sample rate, the same at every quality and in every order). Moving a card, loading a preset or undoing never clicks: the chain crossfades over 20 ms, with every module's state copied first, so echoes and tails carry on.
