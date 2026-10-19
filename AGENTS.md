@@ -10,7 +10,7 @@ Invariants:
 - The latency is fixed per sample rate: the same in every order, at every quality, and at rest.
 - A reorder or a new sound never clicks.
 
-**Status:** M1 (foundation), M2 (SHIFT) and M3b (SMOOTH) are done; CLEAN, BREATH, COMP and DE-ESS (M3) are being built. The rest are still `Passthrough` placeholders. The chain, order, transitions, parameters, state, undo, sidechain, demo host, render tool and bench are in.
+**Status:** M1–M5 done: every module but DELAY and REVERB (M6, in progress) is real. The editor is still the M1 placeholder (M7). Measured targets for M6 are in memory (`vocanal-measurement-targets`). The chain, order, transitions, parameters, state, undo, sidechain, demo host, render tool and bench are in.
 
 ## Key Files
 | File | Description |
@@ -26,6 +26,14 @@ Invariants:
 | `src/core/dsp/Loudness.h` | BS.1770 K-weighting at any rate; `LoudnessMatch` (slow gain that holds a follower at a reference's K-weighted power) |
 | `src/core/fx/PitchShifter.h/.cpp` | SHIFT's engine at an internal rate <= 50 kHz: peak-locked PV (build-app's, reworked), louder-region-wins bins when shifting down, true-envelope formants (order fs / 2 F0), density compensation, a mono fast path, each frame spread over its hop in 5 stages (lag = 2 tails + a hop = 864 samples) |
 | `src/core/fx/Smooth.h/.cpp` | SMOOTH: centred 2048-point linked power analysis, a peak envelope (loudest bin within 120 Hz) on a 1/48-octave grid, narrow (Sharp) vs 1.5-octave dB-averaged neighbourhood with a slow adaptive reference, 3.5 dB threshold, presence weighting, HF-fast attack; minimum-phase filter from the folded cepstrum (4x grid at render) applied by overlap-add; boost-only loudness makeup; 6 stages per hop; latency N/2 + hop = 1280 at 48 kHz; `displayCutDb()` for the UI |
+| `src/core/fx/Clean.h/.cpp` | CLEAN: 18 dB/oct HPF at 0.7 x the low F0 percentile (YIN on a decimated copy), boom/mud bells fitted to the residual against 60 vowel templates (fixed-Hz resonances only, pitch spread required), plosive dip with 5 ms lookahead; learns HPF/boom/mud Hz + cut dB |
+| `src/core/fx/Breath.h/.cpp` | BREATH: two-tier downward expander on breaths (quiet, broadband, unvoiced, slow swell), opens in 0.8 ms on onsets, 5 ms lookahead, 24 dB x knob, Listen |
+| `src/core/fx/Comp.h/.cpp` | COMP: 2 ms lookahead peak stage (4:1) into an opto-style leveller (3:1, two-stage release), K-weighted/100 Hz sidechain; thresholds relative to the learned loudness `comp_ref`; makeup fixed per (knob, learned spread `comp_spread`); `gainReductionDb()` |
+| `src/core/fx/DeEss.h/.cpp` | DE-ESS: 6 ms lookahead; band power vs the voiced body level, gated by band share, spectral flatness (512/64 FFT) and HF periodicity (no prev-buffer energy ratio / ZCR: patent clear); TPT bell at the learned centre `deess_hz`; Listen |
+| `src/core/fx/Warmth.h/.cpp` | WARMTH: tanh - 0.3 tanh^2 curve on the residual only (ADAA), odd part through tape emphasis, even through a high cut, 4x linear-phase FIR, drive vs a slow RMS (colour, not level), static makeup |
+| `src/core/fx/Air.h/.cpp` | AIR: two dynamic analog-fitted high shelves (3.2 / 10 kHz), lift capped by each band's level vs the voice (esses get none), voice gate with hold; Tone splits the lift; latency 0 |
+| `src/core/fx/Radio.h/.cpp` | RADIO: 24 dB/oct band morph to 300 Hz-3.4 kHz (Tone 250-2.8k ... 500-4.5k), speaker bell, ADAA tanh at a 176-192 kHz inner rate, static makeup per knob from a standard speech spectrum |
+| `src/core/fx/Doubler.h/.cpp` | DOUBLE: two seeded drifting delay taps (16/27 ms, +-14 cents max) into the side only (mono sum = dry), centre keeper and loudness guard on the side, Hermite / Lagrange-6 |
 | `src/core/fx/Learn.h` | Learn and hold: which params each learner owns (`kLearnSpecs`), `LearnReport`; the processor latches ready reports on a 10 Hz timer |
 | `src/core/fx/Shift.h/.cpp` | The SHIFT module: dry ring, halfband resampling to the engine rate, equal-power Mix, engage fade (only once the engine is ready), loudness match. Rest = power off, Mix 0, or Pitch and Formant both 0 |
 | `src/plugin/PluginProcessor.cpp` | Host params built from the table (custom `NormalisableRange` = the core's laws; texts with "Off"); transactions (`Change`); the order as state; snapshot undo history; sidechain read; transport (holds the last host BPM); `processBlockBypassed` through the chain's delayed bypass; state with `order` and `stateVersion` |
@@ -70,6 +78,7 @@ Invariants:
   - zero allocations;
   - order parse and pack, parameter laws, the synth voice's ground truth;
   - `[dsp]` the copied primitives; `[shift]` rest, interval, formants, loudness, latency honesty, block invariance, state copy, clicks; `[smooth]` rest, min-phase phase (< 0.05 rad), noise and broad tone left alone, sine and ring cuts, Sharp widths, lookahead/attack order, Listen, copies, clicks.
+- Every module has its own `[clean]`/`[breath]`/`[comp]`/`[deess]`/`[warmth]`/`[air]`/`[radio]`/`[double]` cases: rest bit-exact, the plan's targets, negative controls, block invariance, state copy, clicks.
 - CPU note: during a reorder fade both copies of the suffix run on the same stage schedule, so at 192 kHz with 32-sample blocks a block can overrun (~150 %); 48 kHz stays under 25 %.
 - After DSP changes, run `./build-core/vocanal_bench` (exit 0 = within budget).
 - After UI changes, run the snapshot loop and read the PNGs.
