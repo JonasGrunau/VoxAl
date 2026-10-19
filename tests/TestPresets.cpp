@@ -1,7 +1,9 @@
-// [presets]: the factory sounds. Each one finite and bounded, levelled to the
-// dry voice (integrated loudness within 1 LU, so stepping through them is a
-// fair comparison), free of strong clicks; a swap mid-phrase crossfades
+// [presets]: the factory sounds. Each one finite and bounded, levelled to
+// the dry voice (integrated loudness within 1 LU, so stepping through them is
+// a fair comparison), free of strong clicks; a swap mid-phrase crossfades
 // cleanly; every entry only sets what presets carry.
+// [sweep]: every hero knob automated through the whole chain (no clicks),
+// and the loudness across each one-knob module.
 
 #include "fx/Chain.h"
 #include "fx/Presets.h"
@@ -136,5 +138,84 @@ TEST_CASE ("Presets: a swap mid-phrase crossfades without a click", "[presets][c
         // Whatever the two sounds have in that window themselves, the swap adds nothing.
         const double own = std::max (worstClickP (window (ya.left), kFs), worstClickP (window (yb.left), kFs));
         CHECK (worstClickP (window (ys.left), kFs) <= std::max (2.5, 1.2 * own));
+    }
+}
+
+// ---- Sweeps through the whole chain -------------------------------------------------
+
+namespace
+{
+    struct Hero
+    {
+        voc::P knob;
+        double loudnessLu;   // how far the loudness may move across the knob; 0: not checked
+    };
+    // DELAY and REVERB add their echoes on purpose. RADIO's makeup is fixed
+    // per knob from a standard speech spectrum; the synthetic voice keeps
+    // less of itself inside the telephone band (-2.1 LU at 100 %, real
+    // speech ~0, see the preset notes in Presets.cpp).
+    constexpr Hero kHeroes[] = {
+        { voc::P::clean, 1.5 }, { voc::P::breath, 1.5 }, { voc::P::shiftMix, 1.5 }, { voc::P::smooth, 1.5 },
+        { voc::P::comp, 1.5 }, { voc::P::warmth, 1.5 }, { voc::P::deess, 1.5 }, { voc::P::air, 1.5 },
+        { voc::P::radio, 2.5 }, { voc::P::doubler, 1.5 }, { voc::P::delayMix, 0.0 }, { voc::P::reverbMix, 0.0 },
+    };
+
+    // x through the chain with `move` setting the knobs before every block.
+    template <typename Move>
+    Stereo automate (const Stereo& x, Move&& move)
+    {
+        voc::Chain chain;
+        voc::Settings s;
+        chain.set (s, voc::Order());
+        chain.prepare (kFs, kBlock);
+        Stereo y = x;
+        for (size_t start = 0; start < y.size(); start += kBlock)
+        {
+            move (start, s);
+            chain.set (s, voc::Order());
+            chain.process (y.left.data() + start, y.right.data() + start, (int) std::min<size_t> (kBlock, y.size() - start));
+        }
+        return y;
+    }
+} // namespace
+
+TEST_CASE ("Sweeps: every hero knob swept up and down in the full chain never clicks", "[sweep][click]")
+{
+    // Psy Lead underneath (everything working), then each hero in turn from
+    // 0 to 100 % and back over 1.2 s, while the voice sings.
+    const auto x = voice();
+    const auto base = voc::valuesOf (voc::factoryPresets()[(size_t) voc::factoryIndexOf ("Psy Lead")]);
+    const double each = 1.2 * kFs;
+    for (const auto& h : kHeroes)
+    {
+        INFO (voc::info (h.knob).id);
+        const auto y = automate (x, [&] (size_t at, voc::Settings& s) {
+            s.v = base;
+            const double phase = std::fmod ((double) at / each, 1.0);
+            s[h.knob] = (float) (100.0 * (1.0 - std::abs (2.0 * phase - 1.0)));
+        });
+        REQUIRE (allFinite (y.left));
+        CHECK (worstClickP (y.left, kFs) < 10.0);
+        CHECK (worstClickP (y.right, kFs) < 10.0);
+    }
+}
+
+TEST_CASE ("Sweeps: the loudness holds across every one-knob module's range in the chain", "[sweep][loudness]")
+{
+    // One module at a time, the rest at rest: 25 / 50 / 75 / 100 % against 0.
+    // The knobs take something away (harshness, esses, breaths, rumble, peaks)
+    // or add colour, never level. DELAY and REVERB add theirs on purpose.
+    const auto x = voice();
+    const auto skip = (size_t) (2.0 * kFs);
+    const double dry = integratedLufs (x, kFs, skip);
+    for (const auto& h : kHeroes)
+    {
+        if (h.loudnessLu <= 0.0) continue;
+        for (float amount : { 25.f, 50.f, 75.f, 100.f })
+        {
+            INFO (voc::info (h.knob).id << " at " << amount << " %");
+            const auto y = automate (x, [&] (size_t, voc::Settings& s) { s[h.knob] = amount; });
+            CHECK (std::abs (integratedLufs (y, kFs, skip) - dry) <= h.loudnessLu);
+        }
     }
 }

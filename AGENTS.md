@@ -88,6 +88,7 @@ Invariants:
 - Every module has its own `[clean]`/`[breath]`/`[comp]`/`[deess]`/`[warmth]`/`[air]`/`[radio]`/`[double]`/`[delay]`/`[reverb]` cases: rest bit-exact, the plan's targets, negative controls, block invariance, state copy, clicks.
 - CPU note: during a reorder fade both copies of the suffix run on the same stage schedule, so at 192 kHz with 32-sample blocks a block can overrun (~150 %); 48 kHz stays under 25 %.
 - After DSP changes, run `./build-core/vocanal_bench` (exit 0 = within budget).
+- `[sweep]`: every hero knob automated 0-100-0 % in the full chain (over Psy Lead) without a strong click; each one-knob module holds the loudness within 1.5 LU at 25-100 % (RADIO 2.5 on the synthetic voice).
 - `[presets]`: every factory sound finite, under 0 dBFS, within 1 LU of the dry voice, without strong clicks; swaps between neighbours click free; Init bit-exact.
 - After UI changes, run the snapshot loop and read the PNGs, plus `dndtest presettest audit` (exit code = failures).
 - Before a release: `auval -v aufx Vcnl Jgru` and pluginval at strictness 5 on both formats. The AU warning "Disabling non-main buses failed" is harmless (the sidechain can't be switched off).
