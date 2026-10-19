@@ -10,7 +10,7 @@ Invariants:
 - The latency is fixed per sample rate: the same in every order, at every quality, and at rest.
 - A reorder or a new sound never clicks.
 
-**Status:** M1–M8 done: all 12 modules, the editor, ten factory presets and user presets. Validated by measurement only (auval, pluginval 5 with GUI tests, the test suite, the bench); nobody has listened in a DAW yet, and no release has been tagged. The measured DELAY/REVERB targets are in memory (`vocanal-measurement-targets`). The chain, order, transitions, parameters, state, undo, sidechain, demo host, render tool and bench are in.
+**Status:** M1–M8 done: all 12 modules, the editor, ten factory presets and user presets. Validated by measurement only (auval, pluginval 5 with GUI tests, the test suite, the bench); nobody has listened in a DAW yet. v0.1.0 is the first tagged release (installers unsigned: the signing secrets aren't set). The measured DELAY/REVERB targets are in memory (`vocanal-measurement-targets`). The chain, order, transitions, parameters, state, undo, sidechain, demo host, render tool and bench are in.
 
 ## Key Files
 | File | Description |
@@ -67,7 +67,7 @@ Invariants:
 - State copy: big buffers are `RingBuffer`s listed by `rings()` (same sizes and order in both instances). Everything else goes through `copySmallState()`. No pointer into a module's own storage may live in copied state.
 
 ### Rules the code keeps
-- **Parameter ids, choice lists and module ids are the save format.** Append only; bump the version when a meaning changes. Before v0.1.0 ships they may still change.
+- **Parameter ids, choice lists and module ids are the save format.** Append only; bump the version when a meaning changes. v0.1.0 has shipped, so sessions and presets saved with it must keep loading.
 - **The order is a ValueTree property**, `order = "clean,breath,..."`, not a host parameter: 11! orders don't fit a float-backed int, and a list loads tolerantly when a module is added. The packed atomic is the truth. Unknown ids are skipped; a missing module goes after its nearest default predecessor.
 - **Undo is psysynth-style snapshot history**, pushed on gesture end, card drop, preset load and session load. **Never give the APVTS an UndoManager**: it would record host automation.
 - **Presets, undo and session loads are transactions** (`Change`, `openChanges` before `patchEpoch`). While a transaction is open the audio thread holds the last whole sound (at most 1 s), then crossfades: A keeps the old knobs, B fades in on the new ones.

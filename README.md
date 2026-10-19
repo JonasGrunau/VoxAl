@@ -4,7 +4,7 @@ A whole vocal chain in one plugin, built for psytrance vocals: clean-up, de-brea
 
 ![Vocanal with the Psy Lead preset on the synthetic voice](docs/screenshot.png)
 
-*Work in progress (v0.1.0, unreleased).* Every module works, with ten factory presets; how it sounds has only been measured, not yet heard in a DAW.
+*v0.1.0, the first release: installers for macOS and Windows under [Releases](../../releases/latest), not yet signed.* Every module works, with ten factory presets; how it sounds has only been measured, not yet heard in a DAW.
 
 ```
 in ─┬─ CLEAN ─ BREATH ─ SHIFT ─ SMOOTH ─ COMP ─ WARMTH ─ DE-ESS ─ AIR ─ RADIO ─ DOUBLE ─ DELAY ─ REVERB ─┐ wet
