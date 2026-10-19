@@ -1,0 +1,205 @@
+# Builds the macOS and Windows installers and publishes them as a GitHub release.
+#
+#   git tag v1.2.0 && git push origin v1.2.0
+#
+# A tag with a suffix (v1.2.0-beta.1) becomes a pre-release. Running the workflow
+# by hand (Actions > Release > Run workflow) builds everything and keeps the files
+# as workflow artifacts, without creating a release.
+#
+# Template notes ({{...}} are placeholders; ${{ ... }} with spaces are GitHub
+# expressions and stay as they are):
+# - INSTRUMENT / STANDALONE (PsyBox): add Standalone/Vocanal.app to BUNDLES,
+#   Vocanal_Standalone to both Build steps, and use `auval -v aumu ...`.
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      numeric: ${{ steps.v.outputs.numeric }}
+    steps:
+      - id: v
+        run: |
+          if [[ "$GITHUB_REF_TYPE" == tag ]]; then v=${GITHUB_REF_NAME#v}; else v=0.0.0-dev.${GITHUB_SHA::7}; fi
+          numeric=${v%%-*}
+          if [[ ! "$numeric" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Tag $GITHUB_REF_NAME is not vMAJOR.MINOR.PATCH[-suffix]"; exit 1
+          fi
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          echo "numeric=$numeric" >> "$GITHUB_OUTPUT"
+
+  macos:
+    needs: version
+    runs-on: macos-latest
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+      OUT: build/Vocanal_artefacts/Release
+      BUNDLES: VST3/Vocanal.vst3 AU/Vocanal.component
+      # Signing and notarization run when the certificate secret is set (README > Releases).
+      SIGN: ${{ secrets.MACOS_CERTIFICATES_P12 != '' }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Configure
+        run: >
+          cmake -B build -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64"
+          -DVOCANAL_VERSION=${{ needs.version.outputs.numeric }}
+          -DVOCANAL_BUILD_TESTS=ON -DVOCANAL_COPY_PLUGIN=OFF
+
+      - name: Build
+        run: cmake --build build --parallel --target Vocanal_VST3 Vocanal_AU vocanal_tests
+
+      - name: Test
+        run: ./build/vocanal_tests
+
+      - name: Validate (pluginval)
+        run: |
+          curl -fsSL -o pluginval.zip https://github.com/Tracktion/pluginval/releases/latest/download/pluginval_macOS.zip
+          ditto -x -k pluginval.zip pluginval
+          pluginval/pluginval.app/Contents/MacOS/pluginval --strictness-level 5 --validate-in-process --skip-gui-tests \
+            --validate "$OUT/VST3/Vocanal.vst3"
+
+      # aufx = kAudioUnitType_Effect. An instrument (kAudioUnitType_MusicDevice) is aumu.
+      - name: Validate (auval)
+        run: |
+          mkdir -p ~/Library/Audio/Plug-Ins/Components
+          ditto "$OUT/AU/Vocanal.component" ~/Library/Audio/Plug-Ins/Components/Vocanal.component
+          killall -9 AudioComponentRegistrar 2>/dev/null || true
+          auval -v aufx Vcnl Jgru
+
+      - name: Import Developer ID certificates
+        if: env.SIGN == 'true'
+        env:
+          P12: ${{ secrets.MACOS_CERTIFICATES_P12 }}
+          P12_PASSWORD: ${{ secrets.MACOS_CERTIFICATES_PASSWORD }}
+        run: |
+          kc="$RUNNER_TEMP/signing.keychain-db"
+          kcpass=$(uuidgen)
+          base64 --decode <<<"$P12" > "$RUNNER_TEMP/certs.p12"
+          security create-keychain -p "$kcpass" "$kc"
+          security set-keychain-settings -lut 21600 "$kc"
+          security unlock-keychain -p "$kcpass" "$kc"
+          security import "$RUNNER_TEMP/certs.p12" -k "$kc" -P "$P12_PASSWORD" -T /usr/bin/codesign -T /usr/bin/productbuild
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$kcpass" "$kc" > /dev/null
+          security list-keychains -d user | xargs security list-keychains -d user -s "$kc"
+          rm "$RUNNER_TEMP/certs.p12"
+
+          app=$(security find-identity -v -p codesigning "$kc" | sed -n 's/.*"\(Developer ID Application: .*\)"/\1/p' | head -1)
+          installer=$(security find-identity -v "$kc" | sed -n 's/.*"\(Developer ID Installer: .*\)"/\1/p' | head -1)
+          if [[ -z "$app" || -z "$installer" ]]; then
+            echo "::error::The .p12 needs both the Developer ID Application and the Developer ID Installer identity"; exit 1
+          fi
+          team=${app##*(}
+          { echo "APP_IDENTITY=$app"; echo "INSTALLER_IDENTITY=$installer"; echo "TEAM_ID=${team%)}"; } >> "$GITHUB_ENV"
+
+      - name: Sign plug-ins
+        if: env.SIGN == 'true'
+        run: |
+          for b in $BUNDLES; do
+            codesign --force --timestamp --options runtime --sign "$APP_IDENTITY" "$OUT/$b"
+            codesign --verify --strict --verbose=2 "$OUT/$b"
+          done
+
+      - name: Package
+        run: |
+          [[ "$SIGN" == true ]] || echo "::warning::MACOS_CERTIFICATES_P12 is not set, so the macOS build is not signed"
+          packaging/macos/build-pkg.sh "$OUT" "$VERSION" "dist/Vocanal-$VERSION-macOS.pkg"
+
+      - name: Notarize
+        if: env.SIGN == 'true'
+        env:
+          NOTARY_APPLE_ID: ${{ secrets.NOTARY_APPLE_ID }}
+          NOTARY_PASSWORD: ${{ secrets.NOTARY_PASSWORD }}
+        run: |
+          pkg="dist/Vocanal-$VERSION-macOS.pkg"
+          auth=(--apple-id "$NOTARY_APPLE_ID" --password "$NOTARY_PASSWORD" --team-id "$TEAM_ID")
+          result=$(xcrun notarytool submit "$pkg" "${auth[@]}" --wait --timeout 1h --output-format json)
+          echo "$result"
+          if [[ $(jq -r .status <<<"$result") != Accepted ]]; then
+            xcrun notarytool log "$(jq -r .id <<<"$result")" "${auth[@]}"; exit 1
+          fi
+          xcrun stapler staple "$pkg"
+          # The pkg's ticket covers the bundles inside it, so the zipped copies can carry it too.
+          for b in $BUNDLES; do
+            xcrun stapler staple "$OUT/$b" || echo "::warning::Could not staple $b"
+          done
+
+      - name: Zip plug-ins
+        run: |
+          mkdir plugins
+          ditto "$OUT/VST3/Vocanal.vst3" plugins/Vocanal.vst3
+          ditto "$OUT/AU/Vocanal.component" plugins/Vocanal.component
+          ditto -c -k plugins "dist/Vocanal-$VERSION-macOS-VST3-AU.zip"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: macos
+          path: dist/*
+          if-no-files-found: error
+
+  windows:
+    needs: version
+    runs-on: windows-latest
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+
+      # Quoted: PowerShell splits an unquoted -DVOCANAL_VERSION=1.2.0 at the first dot.
+      - name: Configure
+        run: >
+          cmake -B build -A x64
+          "-DVOCANAL_VERSION=${{ needs.version.outputs.numeric }}"
+          -DVOCANAL_BUILD_TESTS=ON -DVOCANAL_COPY_PLUGIN=OFF
+
+      - name: Build
+        run: cmake --build build --config Release --parallel --target Vocanal_VST3 vocanal_tests
+
+      - name: Test
+        run: build\Release\vocanal_tests.exe
+
+      - name: Install Inno Setup
+        run: choco install innosetup -y --no-progress
+
+      - name: Package
+        run: |
+          $out = "$PWD\build\Vocanal_artefacts\Release"
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DAppVersion=$env:VERSION" "/DArtefacts=$out" "/O$PWD\dist" packaging\windows\Vocanal.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Compress-Archive -Path "$out\VST3\Vocanal.vst3" -DestinationPath "dist\Vocanal-$env:VERSION-Windows-VST3.zip"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: windows
+          path: dist/*
+          if-no-files-found: error
+
+  release:
+    if: github.ref_type == 'tag'
+    needs: [version, macos, windows]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          flags=()
+          [[ "$VERSION" == *-* ]] && flags+=(--prerelease)
+          gh release create "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" \
+            --verify-tag --title "Vocanal $VERSION" --generate-notes "${flags[@]}"
