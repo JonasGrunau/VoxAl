@@ -2,7 +2,9 @@
 
 A whole vocal chain in one plugin, built for psytrance vocals: clean-up, de-breath, compression, saturation, de-essing, air, a radio voice, a doubler, pitch and formant shifting, a ducked tempo delay and a reverb. Most modules are one knob: the plugin finds what to fix and the knob says how much. Drag the cards into any order; the default order is the one a mix engineer would patch.
 
-*Work in progress.* Every module works; the editor is a placeholder until the real UI lands, and the factory presets come with it.
+![Vocanal with the Psy Lead preset on the synthetic voice](docs/screenshot.png)
+
+*Work in progress (v0.1.0, unreleased).* Every module works, with ten factory presets; how it sounds has only been measured, not yet heard in a DAW.
 
 ```
 in ─┬─ CLEAN ─ BREATH ─ SHIFT ─ SMOOTH ─ COMP ─ WARMTH ─ DE-ESS ─ AIR ─ RADIO ─ DOUBLE ─ DELAY ─ REVERB ─┐ wet
@@ -61,6 +63,10 @@ VST3 and Audio Unit for macOS (universal), VST3 for Windows. JUCE 8. An optional
 | | **Duck Key** | Voice: DELAY and REVERB duck to the voice. Sidechain: to whatever feeds the sidechain input (a beat, a lead). |
 | | **Quality** / **Render Quality** | Normal or High. Bounces use Render Quality (High by default); the latency is the same in both. |
 
+## Presets
+
+Ten factory sounds, each levelled to the dry voice (within 1 LU on the test voice), so stepping through them compares sounds, not loudness: **Clean Lead**, **Psy Lead**, **Spoken Sample**, **Radio Voice**, **Telephone Break** (RADIO moved after DELAY, so the echoes come down the line too), **Wide Chant**, **Intimate**, **Dub Throw**, **Alien**, **Upfront Hook**, plus **Init**. ◂ ▸ step through them and then your own; **SAVE** and the **⋯** menu save, rename and delete yours (`~/Documents/Vocanal/Presets/*.vocanal`). A preset never carries what CLEAN, COMP and DE-ESS learned from your take, and **MIX LOCK** keeps the Mix where you set it.
+
 With every knob at its default the voice passes bit for bit, delayed by the plugin's latency (fixed per sample rate, the same at every quality and in every order). Moving a card, loading a preset or undoing never clicks: the chain crossfades over 20 ms, with every module's state copied first, so echoes and tails carry on.
 
 ## How it sounds the way it does
@@ -94,14 +100,19 @@ cmake --build build-core
 
 ### UI snapshots
 
-`build/vocanal_snapshot_artefacts/Release/vocanal_snapshot <dir>`
-renders the editor to PNGs with the built-in loop playing through it, no
-DAW needed. `... <dir> bench` times the paints instead.
+`build/vocanal_snapshot_artefacts/Release/vocanal_snapshot <dir> [state ...]`
+renders the editor to PNGs with the synthetic voice playing through it, no
+DAW needed: every detail panel, a card mid-drag, the preset menu, a factory
+preset playing (`preset`, the screenshot above at `SNAP_SCALE=2
+SNAP_SECONDS=20`) and more. `dndtest`, `presettest` and `audit` are
+self-tests (drag and drop, the preset manager, help lines that fit);
+`bench` times the paints.
 
 ### Offline renders and the CPU bench
 
 ```sh
 ./build-core/vocanal_render in.wav out.wav shift_mix=100 shift_pitch=-12
+./build-core/vocanal_render in.wav out.wav preset="Dub Throw" tail=4
 ./build-core/vocanal_bench
 ```
 

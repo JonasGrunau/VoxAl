@@ -10,7 +10,7 @@
 // Key sidechain, played for a few seconds with a running 145 BPM transport,
 // the editor ticked like its timer would (~30 Hz), then a PNG:
 // <out-dir>/vocanal_<state>.png. States (default: every PNG state):
-//   rest busy learning off edited hover nosc drag presets presetmore saveas
+//   rest busy learning off edited hover nosc drag presets presetmore saveas preset
 //   panel_<module> for each of the twelve modules, cleanmanual
 // Self-tests (print PASS / FAIL lines, exit code = failures; no PNG):
 //   dndtest     drags cards through the chain strip with synthetic mouse
@@ -66,6 +66,7 @@ namespace
         bool noSidechain = false;     // the Duck Key bus switched off
         std::function<void (Run&)> action = {};   // after playing, before the shot
         synth::Seg endOn = synth::Seg::vowel;     // the shot is taken while the voice does this
+        std::string preset = {};                  // a factory preset loaded first (by name)
     };
 
     struct Run
@@ -266,6 +267,9 @@ namespace
             { "cleanmanual", { { "clean", 60.f }, { "clean_focus", 1.f }, { "clean_hpf_hz", 85.f }, { "clean_boom_db", 4.f }, { "clean_mud_db", 3.f } },
               ModuleId::clean, true, 3.0 },
         };
+        // A factory sound playing (the README's screenshot).
+        s.push_back ({ "preset", {}, ModuleId::delay, true, 8.0 });
+        s.back().preset = "Psy Lead";
         // Every detail panel, with its module doing something.
         const std::pair<ModuleId, std::vector<std::pair<const char*, float>>> panels[] = {
             { ModuleId::clean, { { "clean", 60.f } } },
@@ -541,6 +545,7 @@ int main (int argc, char** argv)
         VocanalProcessor proc;
         if (state->noSidechain)
             if (auto* bus = proc.getBus (true, 1)) bus->enable (false);
+        if (! state->preset.empty()) proc.presets.loadFactory (voc::factoryIndexOf (state->preset));
         for (const auto& [id, plain] : state->params) setPlain (proc, id, plain);
         if (auto* list = env ("SNAP_PARAMS"))
             for (const auto& item : juce::StringArray::fromTokens (list, ",", ""))

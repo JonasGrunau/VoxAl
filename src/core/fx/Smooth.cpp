@@ -280,7 +280,7 @@ void Smooth::analyse() noexcept
     boxes (cut, shaped, shapeRadius);
 
     for (int b = 0; b < kDisplayBands; ++b)
-        display[(size_t) b].store ((float) -cutDbAt (kLowHz * std::pow (kTopHz / kLowHz, (b + 0.5) / kDisplayBands)), std::memory_order_relaxed);
+        display[(size_t) b].store ((float) cutDbAt (kLowHz * std::pow (kTopHz / kLowHz, (b + 0.5) / kDisplayBands)), std::memory_order_relaxed);
 }
 
 double Smooth::cutDbAt (double hz) const noexcept

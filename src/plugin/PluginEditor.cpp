@@ -182,7 +182,9 @@ juce::String VocanalEditor::defaultHelp (bool& warn) const
         if (s.on (i.power) && s[i.hero] > 0.f) acting.add (modules::name (m));
     }
     if (acting.isEmpty()) return kDefaultHelp;
-    return acting.joinIntoString (theme::dot) + (acting.size() == 1 ? " acts" : " act") + " on the voice. Hover a control to see what it does.";
+    // A long list leaves no room for the hint (all twelve still fit on their own).
+    const juce::String hint = acting.size() > 7 ? "" : " Hover a control to see what it does.";
+    return acting.joinIntoString (theme::dot) + (acting.size() == 1 ? " acts" : " act") + " on the voice." + hint;
 }
 
 juce::String VocanalEditor::engineText() const

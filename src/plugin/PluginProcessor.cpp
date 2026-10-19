@@ -323,8 +323,7 @@ void VocanalProcessor::publishDisplay (int n) noexcept
     if (const auto* s = dynamic_cast<const voc::Smooth*> (&chain.module (ModuleId::smooth)))
     {
         const bool on = s->engaged();
-        // displayCutDb's sign isn't the one its comment gives: read the size of the cut.
-        for (int b = 0; b < Display::kSmoothBands; ++b) disp.smoothCutDb[(size_t) b].store (on ? std::abs (s->displayCutDb (b)) : 0.f, rel);
+        for (int b = 0; b < Display::kSmoothBands; ++b) disp.smoothCutDb[(size_t) b].store (on ? -s->displayCutDb (b) : 0.f, rel);
         disp.engaged[idx (ModuleId::smooth)].store (on, rel);
     }
     if (const auto* b = dynamic_cast<const voc::Breath*> (&chain.module (ModuleId::breath)))

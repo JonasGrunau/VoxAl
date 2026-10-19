@@ -10,7 +10,7 @@ Invariants:
 - The latency is fixed per sample rate: the same in every order, at every quality, and at rest.
 - A reorder or a new sound never clicks.
 
-**Status:** M1–M6 done: all 12 modules are real. The editor is still the M1 placeholder (M7). The measured DELAY/REVERB targets are in memory (`vocanal-measurement-targets`). The chain, order, transitions, parameters, state, undo, sidechain, demo host, render tool and bench are in.
+**Status:** M1–M8 done: all 12 modules, the editor, ten factory presets and user presets. Validated by measurement only (auval, pluginval 5 with GUI tests, the test suite, the bench); nobody has listened in a DAW yet, and no release has been tagged. The measured DELAY/REVERB targets are in memory (`vocanal-measurement-targets`). The chain, order, transitions, parameters, state, undo, sidechain, demo host, render tool and bench are in.
 
 ## Key Files
 | File | Description |
@@ -37,16 +37,21 @@ Invariants:
 | `src/core/fx/Delay.h/.cpp`, `Sync.h` | DELAY: two lines, latency 0; modes Tape / BBD / Digital / Clean / Lo-Fi as stage choices (input, per pass, feedback-only), write nonlinearity (ADAA algebraic sigmoids, no oversampling) and read modulation, fitted to the M4 measurements; styles Mono / Ping-Pong / Dual (partner note); sync with 0.01 BPM hysteresis, tape-like time glide, read compensated for the loop's group delay; duck on output and feedback; Diffuse = 4 allpasses per line at fixed length. `Sync.h`: note lengths in beats |
 | `src/core/fx/Reverb.h/.cpp` | REVERB: two engines (playing + spill on a mode/colour change), each a 16-line Hadamard FDN (Hall, Bright Hall, Ambience with early reflections) or a Dattorro-style ring (Plate, Smooth Plate, Room, Chamber); Jot decay filters per line from the target RT60 per band; colours 70s (half rate behind halfbands, stepped modulation) / 80s / Now; Mix on a square law; latency 0 |
 | `src/core/fx/Learn.h` | Learn and hold: which params each learner owns (`kLearnSpecs`), `LearnReport`; the processor latches ready reports on a 10 Hz timer |
+| `src/core/fx/Presets.h/.cpp` | The factory table: Init and ten sounds, each only the preset-flagged values that differ from the defaults (checked at compile time), an optional order; Output levels each to the dry synthetic voice within 1 LU (`[presets]`) |
 | `src/core/fx/Shift.h/.cpp` | The SHIFT module: dry ring, halfband resampling to the engine rate, equal-power Mix, engage fade (only once the engine is ready), loudness match. Rest = power off, Mix 0, or Pitch and Formant both 0 |
 | `src/plugin/PluginProcessor.cpp` | Host params built from the table (custom `NormalisableRange` = the core's laws; texts with "Off"); transactions (`Change`); the order as state; snapshot undo history; sidechain read; transport (holds the last host BPM); `processBlockBypassed` through the chain's delayed bypass; state with `order` and `stateVersion` |
-| `src/plugin/PluginEditor.cpp` | M1 placeholder sheet (Output, Mix). The real UI is M7 |
+| `src/plugin/PluginEditor.cpp` | The sheet (880 x 720, scaled whole): masthead (VOC/ANAL, preset bar, undo/redo, IN/OUT meters), A VOICE, B CHAIN, C the selected module, D OUTPUT, footer (hover help, or which modules act; rate, quality, latency, tempo source) |
+| `src/ui/VoiceSpectrum.*` | A VOICE: input line (tap delayed by the latency) and filled output; REMOVED/ADDED from the modules' published gain curves (the processor's `Display` atomics, ~60 Hz), never from input − output; learned-Hz markers |
+| `src/ui/ChainStrip.*` | B CHAIN: twelve 62 px cards (power, name, hero dial, status row: LEARNING or what the module does now); drag to reorder with a gap where it lands (one undo step); click selects |
+| `src/ui/ModulePanels.*`, `Modules.h`, `Layout.h` | C: the twelve detail rows; per-module hero, power and help sentences; layout tokens |
+| `src/ui/PresetBar.*`, `src/plugin/PresetManager.*`, `src/plugin/Sound.h` | ◂ name ▸ SAVE ⋯; user presets as `.vocanal` XML (params, order, version) in `~/Documents/Vocanal/Presets` (`VOCANAL_PRESET_FOLDER` moves it); a load is one `applySound` transaction and one undo step; Delete moves to the Trash |
 | `tests/StubModules.h` | Stand-ins with real latency (`Lookahead`), real tails (`Echo`), a shaper, a stateful filter and a key probe; `stubFactory()`, `delayFactory()` |
 | `tests/SynthVoice.h` | Synthetic voice with ground truth: labelled segments (vowel, sibilant, fricative, plosive, breath) and an exact vowel envelope, optional boom, harsh ring and loud-ess faults at known Hz |
 | `tools/Demo.cpp` | Demo host (`./start.sh [vocal.wav]`): a dry voice through the plugin, looped on whole bars with room for the tails, no beat. VOCANAL / DRY (the input delayed by the latency) for an A/B. Sources: every kit vocal, the synthetic voice, the synthetic voice with faults, your file. The Duck Key bus gets silence |
 | `tools/DemoKit.h` | Kit file parser: `tempo`, `vocal = file`, `vocals = folder` (gitignored `demo-kit.txt`; never commit sample paths or audio) |
-| `tools/Render.cpp` | `vocanal_render in.wav out.wav [id=value ...] [order=...] [render=0|1]`: offline render through the chain, latency removed (before/after WAVs; mp3 first through `afconvert`/`ffmpeg`) |
+| `tools/Render.cpp` | `vocanal_render in.wav out.wav [preset=name] [id=value ...] [order=...] [render=0|1] [bpm=140] [tail=0]`: offline render through the chain with a running transport, latency removed (before/after WAVs; mp3 first through `afconvert`/`ffmpeg`) |
 | `tools/Bench.cpp` | `vocanal_bench [seconds]`: average load and worst block per rate and block size, with and without reorders; exit 1 over budget (48 kHz, 32/64 blocks: average ≤ 25 %, worst ≤ 50 % of the period) |
-| `tools/Snapshot.cpp` | `vocanal_snapshot <dir> [state ...]`: renders the editor offscreen to PNGs; `bench` times the paints |
+| `tools/Snapshot.cpp` | `vocanal_snapshot <dir> [state ...]`: renders the editor offscreen to PNGs (rest, busy, learning, off, edited, hover, nosc, drag, presets, presetmore, saveas, preset, cleanmanual, `panel_<module>`); self-tests `dndtest`, `presettest`, `audit`; `bench` times the paints. `SNAP_SCALE`, `SNAP_SECONDS`, `SNAP_PARAMS`, `SNAP_STOP`, `SNAP_HOVER` |
 
 ## For AI Agents
 
@@ -83,7 +88,8 @@ Invariants:
 - Every module has its own `[clean]`/`[breath]`/`[comp]`/`[deess]`/`[warmth]`/`[air]`/`[radio]`/`[double]`/`[delay]`/`[reverb]` cases: rest bit-exact, the plan's targets, negative controls, block invariance, state copy, clicks.
 - CPU note: during a reorder fade both copies of the suffix run on the same stage schedule, so at 192 kHz with 32-sample blocks a block can overrun (~150 %); 48 kHz stays under 25 %.
 - After DSP changes, run `./build-core/vocanal_bench` (exit 0 = within budget).
-- After UI changes, run the snapshot loop and read the PNGs.
+- `[presets]`: every factory sound finite, under 0 dBFS, within 1 LU of the dry voice, without strong clicks; swaps between neighbours click free; Init bit-exact.
+- After UI changes, run the snapshot loop and read the PNGs, plus `dndtest presettest audit` (exit code = failures).
 - Before a release: `auval -v aufx Vcnl Jgru` and pluginval at strictness 5 on both formats. The AU warning "Disabling non-main buses failed" is harmless (the sidechain can't be switched off).
 
 ### Common Patterns
