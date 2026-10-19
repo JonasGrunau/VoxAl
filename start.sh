@@ -1,21 +1,21 @@
 #!/usr/bin/env bash
 # Builds and opens the demo host: Vocanal in a window with a dry vocal playing
-# through it over a psytrance loop, out of your speakers. No DAW.
-#   ./start.sh                        the synthetic voice (pick a scenario in the window)
-#   ./start.sh vocal.wav [beat.wav]   your dry vocal (and beat), looped
-# The built-in loop uses real samples when demo-kit.txt lies next to this
-# script (see demo-kit.example.txt; it stays out of git), or VOC_DEMO_KIT
-# names a kit file; otherwise a synthesized loop.
+# through it, out of your speakers. No DAW, no beat: just the voice.
+#   ./start.sh              pick a vocal in the window
+#   ./start.sh vocal.wav    your dry vocal, looped
+# The vocals to pick from are listed in demo-kit.txt next to this script (see
+# demo-kit.example.txt; it stays out of git), or the kit file VOC_DEMO_KIT
+# names; without one there is the synthetic voice.
 # CMake options for the first configure go in VOC_CMAKE_ARGS, e.g.
 #   VOC_CMAKE_ARGS=-DFETCHCONTENT_SOURCE_DIR_JUCE=~/JUCE ./start.sh
 set -euo pipefail
 
-# File arguments are relative to where you are, not to the repo.
+# A file argument is relative to where you are, not to the repo.
 files=()
-for f in "$@"; do
-    [[ -f "$f" ]] || { echo "No such file: $f" >&2; exit 1; }
-    files+=("$(cd "$(dirname "$f")" && pwd)/$(basename "$f")")
-done
+if [[ $# -gt 0 ]]; then
+    [[ -f "$1" ]] || { echo "No such file: $1" >&2; exit 1; }
+    files+=("$(cd "$(dirname "$1")" && pwd)/$(basename "$1")")
+fi
 
 cd "$(dirname "$0")"
 if [[ -z "${VOC_DEMO_KIT:-}" && -f demo-kit.txt ]]; then

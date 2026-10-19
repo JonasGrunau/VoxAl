@@ -77,21 +77,22 @@ prints the load per sample rate and block size.
 ### Trying it without a DAW
 
 ```sh
-./start.sh                       # the synthetic voice over the built-in loop
-./start.sh vocal.wav [beat.wav]  # your vocal (and beat)
+./start.sh            # pick a vocal in the window
+./start.sh vocal.wav  # your dry vocal
 ```
 
-`start.sh` builds and opens the demo host: the voice through the plugin, the
-beat around it and on the Duck Key bus. **MIX**, **VOICE** and **BEAT** pick
-what you hear; space plays and stops. The plugin gets a matching looping
-transport, so the delay's tempo sync works as in a DAW.
+`start.sh` builds and opens the demo host: a dry voice through the plugin,
+looped, nothing else playing. **VOCANAL** plays the plugin's output, **DRY**
+the voice as it went in, lined up with it for an A/B; space plays and stops.
+The plugin gets a looping transport at 140 BPM, so the delay's tempo sync
+works as in a DAW.
 
-Real samples come from a kit file: copy `demo-kit.example.txt` to
+The vocals to pick from come from a kit file: copy `demo-kit.example.txt` to
 `demo-kit.txt` (ignored by git, sample packs aren't ours to share) and list
-dry vocals (`vocal = ...`) and, for the beat, a kick, the bass shots, their
-tempo and the pattern; `start.sh` picks it up (or set `VOC_DEMO_KIT`).
-Without a kit the voice and the loop are synthesized. For a configure option
-on first run: `VOC_CMAKE_ARGS=-D... ./start.sh`.
+a folder of dry vocals (`vocals = ...`) or single files (`vocal = ...`);
+`start.sh` picks it up (or set `VOC_DEMO_KIT`). The synthetic voice, plain
+and with faults the smart modules should find, is always there. For a
+configure option on first run: `VOC_CMAKE_ARGS=-D... ./start.sh`.
 
 ### Releases
 

@@ -40,8 +40,8 @@ Invariants:
 | `src/plugin/PluginEditor.cpp` | M1 placeholder sheet (Output, Mix). The real UI is M7 |
 | `tests/StubModules.h` | Stand-ins with real latency (`Lookahead`), real tails (`Echo`), a shaper, a stateful filter and a key probe; `stubFactory()`, `delayFactory()` |
 | `tests/SynthVoice.h` | Synthetic voice with ground truth: labelled segments (vowel, sibilant, fricative, plosive, breath) and an exact vowel envelope, optional boom, harsh ring and loud-ess faults at known Hz |
-| `tools/Demo.cpp` | Demo host (`./start.sh [vocal.wav [beat.wav]]`): the voice through the plugin, the beat around it and on the Duck Key bus. MIX (beat delayed by the latency), VOICE, BEAT. Scenarios: synthetic voice, synthetic voice with faults, and every `vocal =` in the local `demo-kit.txt` |
-| `tools/DemoKit.h` | Kit file parser: `tempo`, `pattern`, `kick`, `bass`, `vocal` (gitignored `demo-kit.txt`; never commit sample paths or audio) |
+| `tools/Demo.cpp` | Demo host (`./start.sh [vocal.wav]`): a dry voice through the plugin, looped on whole bars with room for the tails, no beat. VOCANAL / DRY (the input delayed by the latency) for an A/B. Sources: every kit vocal, the synthetic voice, the synthetic voice with faults, your file. The Duck Key bus gets silence |
+| `tools/DemoKit.h` | Kit file parser: `tempo`, `vocal = file`, `vocals = folder` (gitignored `demo-kit.txt`; never commit sample paths or audio) |
 | `tools/Render.cpp` | `vocanal_render in.wav out.wav [id=value ...] [order=...] [render=0|1]`: offline render through the chain, latency removed (before/after WAVs; mp3 first through `afconvert`/`ffmpeg`) |
 | `tools/Bench.cpp` | `vocanal_bench [seconds]`: average load and worst block per rate and block size, with and without reorders; exit 1 over budget (48 kHz, 32/64 blocks: average ≤ 25 %, worst ≤ 50 % of the period) |
 | `tools/Snapshot.cpp` | `vocanal_snapshot <dir> [state ...]`: renders the editor offscreen to PNGs; `bench` times the paints |

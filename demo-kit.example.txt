@@ -1,17 +1,9 @@
-# Samples for ./start.sh's built-in loop. Copy to demo-kit.txt (ignored by
+# Dry vocals for ./start.sh's demo host. Copy to demo-kit.txt (ignored by
 # git: sample packs aren't ours to share) and point it at your files.
 # Paths are absolute, start with ~, or are relative to this file.
 
-tempo = 140                                  # the bass shots' tempo: one shot = one beat
-pattern = offbeat                            # offbeat: one note on the "and" of every beat, rings until the next
-                                             # rolling: on the three 16ths after the kick (K-B-B-B), gated
+tempo = 140                                  # the demo transport's tempo: the synced delay follows it
 
-kick = ~/Samples/Kicks/Kick F#.wav           # a short kick, tuned to the bass
-
-bass = ~/Samples/Bass Shots/Bass F#.wav      # the root, on every beat
-bass = ~/Samples/Bass Shots/Bass A.wav       # up to three more notes, one patch:
-bass = ~/Samples/Bass Shots/Bass E.wav       # the loop changes to them
-bass = ~/Samples/Bass Shots/Bass D.wav       # at the ends of the bars
-
-vocal = ~/Samples/Vocals/Dry Lead.wav        # dry vocals to process: each one is a scenario in the
-vocal = ~/Samples/Vocals/Spoken Line.wav     # demo host (any number; no beat needed for these)
+vocals = ~/Samples/Dry Vocals                # every audio file in a folder, each one a choice in the bar
+vocal = ~/Samples/Vocals/Dry Lead.wav        # or single files (any number)
+vocal = ~/Samples/Vocals/Spoken Line.wav
