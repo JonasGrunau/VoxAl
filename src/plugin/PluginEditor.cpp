@@ -99,7 +99,7 @@ void VocanalEditor::Sheet::paint (juce::Graphics& g)
 
     // Wordmark LEFT/RIGHT (BUILD/APP, PHASE/FUCKER) and the sub-line
     // "CATEGORY · MODEL-1 · vX.Y.Z".
-    masthead (g, "VOCA", "NAL",
+    masthead (g, "VOC", "ANAL",
               juce::String (juce::CharPointer_UTF8 ("VOCAL CHAIN \xc2\xb7 VO-1 \xc2\xb7 v")) + JucePlugin_VersionString);
 
     // Section A and its legend, right-aligned on the tag row.
