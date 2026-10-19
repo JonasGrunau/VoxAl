@@ -2,6 +2,11 @@
 
 #include "Format.h"
 #include "PluginEditor.h"
+#include "fx/Air.h"
+#include "fx/Breath.h"
+#include "fx/Clean.h"
+#include "fx/Comp.h"
+#include "fx/DeEss.h"
 
 namespace
 {
@@ -19,7 +24,8 @@ namespace
         {
             case Unit::percent:   return fmt::percent (v);
             case Unit::bipolar:   return fmt::signedNumber (v, 0) + " %";
-            case Unit::db:        return fmt::decibels (v);
+            // A level is signed; an amount that can't go negative (a cut's depth, a spread) isn't.
+            case Unit::db:        return i.min >= 0.f ? fmt::fixed (v, 1) + " dB" : fmt::decibels (v);
             case Unit::hz:        return fmt::hertz (v);
             case Unit::ms:        return fmt::milliseconds (v, v < 10.f ? 1 : 0);
             case Unit::seconds:   return fmt::fixed (v, v < 10.f ? 2 : 1) + " s";
@@ -56,6 +62,7 @@ VocanalProcessor::VocanalProcessor()
         params[k]->addListener (this);
     }
     lastSettings = settings();
+    for (int i = 0; i < Display::kCleanPoints; ++i) cleanHzTable[(size_t) i] = Display::cleanHz (i);
     pushHistory();
     startTimerHz (10);   // learn and hold: latches what the modules learned
 }
@@ -293,6 +300,62 @@ void VocanalProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
     scratch.setSize (2, std::max (1, samplesPerBlock));
     setLatencySamples (chain.latencySamples());
     tailSeconds.store (chain.tailSeconds(), std::memory_order_relaxed);
+    publishEvery = std::max (1, (int) (sampleRate / 60.0));
+    sincePublish = publishEvery;   // the first block publishes
+}
+
+// Audio thread, after the chain ran: what each module does now, from its
+// active instance, into the atomics the editor reads (about 60 times a second).
+void VocanalProcessor::publishDisplay (int n) noexcept
+{
+    if ((sincePublish += n) < publishEvery) return;
+    sincePublish = 0;
+    using voc::ModuleId;
+    constexpr auto rel = std::memory_order_relaxed;
+    const auto idx = [] (ModuleId m) { return (size_t) m; };
+
+    if (const auto* c = dynamic_cast<const voc::Clean*> (&chain.module (ModuleId::clean)))
+    {
+        for (size_t i = 0; i < cleanHzTable.size(); ++i) disp.cleanDb[i].store ((float) c->responseDb (cleanHzTable[i]), rel);
+        disp.cleanDipDb.store ((float) c->dipDb(), rel);
+        disp.engaged[idx (ModuleId::clean)].store (c->engaged(), rel);
+    }
+    if (const auto* s = dynamic_cast<const voc::Smooth*> (&chain.module (ModuleId::smooth)))
+    {
+        const bool on = s->engaged();
+        // displayCutDb's sign isn't the one its comment gives: read the size of the cut.
+        for (int b = 0; b < Display::kSmoothBands; ++b) disp.smoothCutDb[(size_t) b].store (on ? std::abs (s->displayCutDb (b)) : 0.f, rel);
+        disp.engaged[idx (ModuleId::smooth)].store (on, rel);
+    }
+    if (const auto* b = dynamic_cast<const voc::Breath*> (&chain.module (ModuleId::breath)))
+    {
+        const auto probe = b->probe();
+        disp.breathReductionDb.store ((float) std::max (0.0, probe.reductionDb), rel);
+        disp.breathScore.store ((float) std::max (probe.score, probe.loudScore), rel);
+    }
+    if (const auto* c = dynamic_cast<const voc::Comp*> (&chain.module (ModuleId::comp)))
+    {
+        disp.compGrDb.store (c->gainReductionDb(), rel);
+        disp.compRefLufs.store (c->referenceLufs(), rel);
+        disp.compSpreadDb.store (c->spreadDb(), rel);
+        disp.engaged[idx (ModuleId::comp)].store (c->engaged(), rel);
+    }
+    if (const auto* d = dynamic_cast<const voc::DeEss*> (&chain.module (ModuleId::deess)))
+    {
+        const bool on = d->engaged();
+        disp.deessReductionDb.store (on ? (float) d->reductionDb() : 0.f, rel);
+        disp.deessCentreHz.store ((float) d->centreHz(), rel);
+        disp.deessSibilance.store ((float) d->sibilance(), rel);
+        disp.engaged[idx (ModuleId::deess)].store (on, rel);
+    }
+    if (const auto* a = dynamic_cast<const voc::Air*> (&chain.module (ModuleId::air)))
+    {
+        const bool on = a->engaged();
+        for (int band = 0; band < 2; ++band) disp.airLiftDb[(size_t) band].store (on ? a->liftDb (band) : 0.f, rel);
+        disp.airGate.store (a->gateOpen(), rel);
+        disp.engaged[idx (ModuleId::air)].store (on, rel);
+    }
+    disp.serial.fetch_add (1, rel);
 }
 
 voc::Transport VocanalProcessor::readTransport() noexcept
@@ -313,6 +376,7 @@ voc::Transport VocanalProcessor::readTransport() noexcept
     t.bpm = lastBpm;
     t.tempoKnown = hadTempo;
     tempoKnown.store (hadTempo, std::memory_order_relaxed);
+    bpmShown.store (lastBpm, std::memory_order_relaxed);
     return t;
 }
 
@@ -344,6 +408,10 @@ void VocanalProcessor::process (juce::AudioBuffer<float>& buffer, bool hostBypas
             keyL = sc.getReadPointer (0);
             keyR = sc.getNumChannels() > 1 ? sc.getReadPointer (1) : keyL;
             scActive = true;
+            const auto l = juce::FloatVectorOperations::findMinAndMax (keyL, n);
+            const auto r = juce::FloatVectorOperations::findMinAndMax (keyR, n);
+            const float p = std::max ({ -l.getStart(), l.getEnd(), -r.getStart(), r.getEnd() });
+            if (p > keyPeak.load (std::memory_order_relaxed)) keyPeak.store (p, std::memory_order_relaxed);
         }
     }
     sidechainActive.store (scActive, std::memory_order_relaxed);
@@ -388,6 +456,7 @@ void VocanalProcessor::process (juce::AudioBuffer<float>& buffer, bool hostBypas
     chain.set (lastSettings, lastOrder, newSound);
     chain.process (left, right, n, keyL, keyR, readTransport());
     postLearnReports();
+    publishDisplay (n);
     tap (outTap, outPeak);
 
     if (outs == 1)   // mono out: the sum
@@ -413,6 +482,7 @@ void VocanalProcessor::getStateInformation (juce::MemoryBlock& destData)
     // The atomic is the truth (this may run off the message thread).
     state.setProperty (kOrderProp, juce::String (getOrder().toString()), nullptr);
     state.setProperty (kVersionProp, kStateVersion, nullptr);
+    presets.saveInto (state);   // the preset's name and whether it was edited
     if (auto xml = state.createXml())
         copyXmlToBinary (*xml, destData);
 }
@@ -426,6 +496,7 @@ void VocanalProcessor::setStateInformation (const void* data, int sizeInBytes)
     const auto order = voc::Order::parse (tree.getProperty (kOrderProp).toString().toStdString());
     apvts.replaceState (tree);
     orderWord.store (order.pack(), std::memory_order_release);
+    presets.loadFrom (tree);
     triggerAsyncUpdate();   // the loaded sound becomes an undo step
 }
 

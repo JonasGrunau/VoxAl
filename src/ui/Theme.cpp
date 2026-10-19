@@ -89,6 +89,21 @@ void hatch (juce::Graphics& g, juce::Rectangle<float> r, juce::Colour c, float s
     g.strokePath (p, juce::PathStrokeType (thickness));
 }
 
+void hatch (juce::Graphics& g, juce::Rectangle<float> r, juce::Colour c, float spacing, float thickness, juce::Point<float> anchor)
+{
+    // Lines x + y = k, with k on the anchor's lattice.
+    const float a = anchor.x + anchor.y;
+    float k = a + std::ceil ((r.getX() + r.getY() - a) / spacing) * spacing;
+    juce::Path p;
+    for (; k < r.getRight() + r.getBottom(); k += spacing)
+    {
+        p.startNewSubPath (k - r.getBottom(), r.getBottom());
+        p.lineTo (k - r.getY(), r.getY());
+    }
+    g.setColour (c);
+    g.strokePath (p, juce::PathStrokeType (thickness));
+}
+
 void masthead (juce::Graphics& g, const juce::String& left, const juce::String& right, const juce::String& subline)
 {
     // Wordmark: LEFT in ink, the slash in the accent, RIGHT in ink, set tight
@@ -120,6 +135,13 @@ juce::Rectangle<int> footerArea (float sheetHeight)
     return juce::Rectangle<float> (sheet::kMargin, sheetHeight - sheet::kFooterUp, sheet::kContentW, 22.f).toNearestInt();
 }
 
+float footerHelpWidth (const juce::String& right)
+{
+    // The engine state takes what it needs (at least kFooterRightW), a group gap clear of the help.
+    const float rightW = std::max (sheet::kFooterRightW, textWidth (mono (size::footRight), right) + sheet::kGroupGap);
+    return sheet::kContentW - rightW;
+}
+
 void footer (juce::Graphics& g, float sheetHeight, const juce::String& help, const juce::String& right, bool warn)
 {
     g.setColour (col::footerRule);
@@ -127,7 +149,7 @@ void footer (juce::Graphics& g, float sheetHeight, const juce::String& help, con
     const auto foot = footerArea (sheetHeight).toFloat();
     g.setFont (mono (size::help));
     g.setColour (warn ? col::accent : col::ink);
-    g.drawText (help, foot.withTrimmedRight (sheet::kFooterRightW), juce::Justification::centredLeft, true);
+    g.drawText (help, foot.withWidth (footerHelpWidth (right)), juce::Justification::centredLeft, true);
     g.setFont (mono (size::footRight));
     g.setColour (col::inkFaint);
     g.drawText (right, foot, juce::Justification::centredRight, false);

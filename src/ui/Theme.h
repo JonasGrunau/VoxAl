@@ -232,6 +232,9 @@ namespace theme
 
     // Diagonal hatching across r (clip first to hatch a shape): one path, one stroke.
     void hatch (juce::Graphics& g, juce::Rectangle<float> r, juce::Colour c, float spacing = 4.f, float thickness = 1.f);
+    // The same, its lines anchored at `anchor` rather than at r's corner, so a
+    // region that changes from frame to frame keeps one pattern (no crawl).
+    void hatch (juce::Graphics& g, juce::Rectangle<float> r, juce::Colour c, float spacing, float thickness, juce::Point<float> anchor);
 
     // The masthead: "LEFT/RIGHT" in title (27) with the slash in the accent,
     // the sub-line under it ("PSYTRANCE BUILDUP · BA-1 · v0.1.0": category and
@@ -243,6 +246,7 @@ namespace theme
     // or the status; accent when it warns) and the engine state on the right.
     void footer (juce::Graphics& g, float sheetHeight, const juce::String& help, const juce::String& right, bool warn = false);
     juce::Rectangle<int> footerArea (float sheetHeight);   // for repaint (footerArea (h))
+    float footerHelpWidth (const juce::String& right);    // room the help line has next to that engine state
 
     // A legend item, drawn right to left from `right` along the section tag's
     // row: the caption, then a 14-16 px swatch drawn by `swatch`. Returns the

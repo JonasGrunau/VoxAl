@@ -48,6 +48,7 @@ add_library(vocanal_core STATIC
     src/core/fx/Doubler.cpp
     src/core/fx/Delay.cpp
     src/core/fx/Reverb.cpp
+    src/core/fx/Presets.cpp
     src/core/dsp/Fft.cpp
     src/core/dsp/Halfband.cpp
 )
@@ -118,9 +119,13 @@ if(VOCANAL_BUILD_PLUGIN)
     set(VOCANAL_UI_SOURCES
         src/plugin/PluginProcessor.cpp
         src/plugin/PluginEditor.cpp
+        src/plugin/PresetManager.cpp
         src/ui/Theme.cpp
         src/ui/Controls.cpp
-        src/ui/WaveView.cpp)
+        src/ui/VoiceSpectrum.cpp
+        src/ui/ChainStrip.cpp
+        src/ui/ModulePanels.cpp
+        src/ui/PresetBar.cpp)
 
     target_sources(Vocanal PRIVATE ${VOCANAL_UI_SOURCES})
     target_include_directories(Vocanal PRIVATE src)
