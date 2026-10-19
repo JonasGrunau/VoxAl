@@ -181,10 +181,14 @@ void VocanalProcessor::pushHistory()
     auto now = currentSound();
     for (size_t k = 0; k < voc::kNumParams; ++k)
         if (! voc::info ((P) k).inSnapshots()) now.values[k] = 0.f;   // quality, bypass, listen: not part of a sound
-    if (historyIndex >= 0 && history[(size_t) historyIndex] == now) return;
+    if (historyIndex >= 0 && history[(size_t) historyIndex].sound == now)
+    {
+        history[(size_t) historyIndex].preset = presets.current();   // the same sound under a new name
+        return;
+    }
     if (historyIndex + 1 < (int) history.size())
         history.erase (history.begin() + historyIndex + 1, history.end());
-    history.push_back (now);
+    history.push_back ({ now, presets.current() });
     if (history.size() > 100) history.erase (history.begin());
     historyIndex = (int) history.size() - 1;
 }
@@ -203,7 +207,8 @@ void VocanalProcessor::stepHistory (int delta)
 {
     cancelPendingUpdate();
     historyIndex += delta;
-    applySound (history[(size_t) historyIndex], false, true);
+    applySound (history[(size_t) historyIndex].sound, false, true);
+    presets.restore (history[(size_t) historyIndex].preset);
 }
 
 // ---- Learn and hold -------------------------------------------------------------

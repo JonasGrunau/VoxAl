@@ -210,7 +210,12 @@ private:
     void publishDisplay (int numSamples) noexcept;   // audio thread
 
     // Message thread.
-    std::vector<Sound> history;
+    struct Step
+    {
+        Sound sound;
+        PresetManager::Current preset;   // which preset was current with it
+    };
+    std::vector<Step> history;
     int historyIndex = -1;
     void stepHistory (int delta);
 

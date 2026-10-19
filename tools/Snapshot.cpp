@@ -423,8 +423,19 @@ namespace
         check (std::abs (proc.plain (P::cleanHpfHz) - 90.f) < 0.01f, "loading keeps the learned values (they belong to the take)");
         check (proc.historySize() == h0 + 1, "a load is one undo step");
         proc.undo();
+        pump (40);
         check (std::abs (proc.plain (P::clean) - 10.f) < 0.01f && proc.getOrder() == voc::Order(), "undo takes the load back");
         proc.redo();
+        pump (40);
+        // Undo and redo bring the preset's name back with its sound.
+        pm.loadFactory (voc::factoryIndexOf ("Dub Throw"));
+        pump (40);
+        proc.undo();
+        pump (40);
+        check (pm.name() == "Snap Lead" && ! pm.isEdited(), "undoing a factory load brings Snap Lead back, not edited: " + pm.name());
+        proc.redo();
+        pump (40);
+        check (pm.name() == "Dub Throw" && pm.isFactory() && ! pm.isEdited(), "redo brings Dub Throw back: " + pm.name());
 
         // The MIX lock keeps Mix.
         setPlain (proc, "mix_lock", 1.f);

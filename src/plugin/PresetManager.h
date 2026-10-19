@@ -69,6 +69,19 @@ public:
     static std::optional<VocanalSound> read (const juce::File& f, juce::String* nameOut = nullptr);
     static juce::File fileFor (const juce::String& name);
 
+    // Which preset is current, for the undo history: a step restores it with
+    // its sound, so undoing a load brings the old name back too.
+    struct Current
+    {
+        juce::String name;
+        int factory = -1;
+        juce::File file;
+        std::optional<VocanalSound> reference;
+        bool storedEdited = false;
+    };
+    Current current() const;
+    void restore (const Current& c);
+
     // The session.
     void saveInto (juce::ValueTree& state) const;   // any thread
     void loadFrom (const juce::ValueTree& state);   // message thread, after the parameters
@@ -76,7 +89,7 @@ public:
 private:
     bool same (const VocanalSound& a, const VocanalSound& b) const;
     void setCurrent (const juce::String& name, int factory, const juce::File& f, std::optional<VocanalSound> ref);
-    bool apply (const VocanalSound& s);
+    bool apply (const VocanalSound& s, const juce::String& name, int factory, const juce::File& f);
 
     VocanalProcessor& proc;
     mutable juce::CriticalSection lock;

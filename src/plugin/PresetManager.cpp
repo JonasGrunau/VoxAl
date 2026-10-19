@@ -124,6 +124,23 @@ bool PresetManager::isEdited() const
     return ref ? ! same (proc.currentSound(), *ref) : stored;
 }
 
+PresetManager::Current PresetManager::current() const
+{
+    const juce::ScopedLock l (lock);
+    return { currentName, currentFactory, currentFile, reference, storedEdited };
+}
+
+void PresetManager::restore (const Current& c)
+{
+    const juce::ScopedLock l (lock);
+    currentName = c.name;
+    currentFactory = c.factory;
+    currentFile = c.file;
+    reference = c.reference;
+    storedEdited = c.storedEdited;
+    ++gen;
+}
+
 void PresetManager::setCurrent (const juce::String& n, int factory, const juce::File& f, std::optional<VocanalSound> ref)
 {
     const juce::ScopedLock l (lock);
@@ -137,10 +154,12 @@ void PresetManager::setCurrent (const juce::String& n, int factory, const juce::
 
 // ---- Loading ------------------------------------------------------------------------------
 
-bool PresetManager::apply (const VocanalSound& s)
+bool PresetManager::apply (const VocanalSound& s, const juce::String& name, int factory, const juce::File& f)
 {
-    // One transaction (the audio thread crossfades into it) and one undo step.
+    // One transaction (the audio thread crossfades into it) and one undo
+    // step, which already carries the new name.
     proc.applySound (s, proc.plain (P::mixLock) > 0.5f, false);
+    setCurrent (name, factory, f, proc.currentSound());
     proc.pushHistory();
     return true;
 }
@@ -149,10 +168,7 @@ bool PresetManager::loadFactory (int index)
 {
     const auto factory = voc::factoryPresets();
     if (index < 0 || index >= (int) factory.size()) return false;
-    const auto s = soundOf (factory[(size_t) index]);
-    apply (s);
-    setCurrent (nameOf (factory[(size_t) index]), index, {}, proc.currentSound());
-    return true;
+    return apply (soundOf (factory[(size_t) index]), nameOf (factory[(size_t) index]), index, {});
 }
 
 bool PresetManager::loadFile (const juce::File& f)
@@ -160,9 +176,7 @@ bool PresetManager::loadFile (const juce::File& f)
     juce::String n;
     const auto s = read (f, &n);
     if (! s) return false;
-    apply (*s);
-    setCurrent (f.getFileNameWithoutExtension(), -1, f, proc.currentSound());
-    return true;
+    return apply (*s, f.getFileNameWithoutExtension(), -1, f);
 }
 
 bool PresetManager::load (const Entry& e)
