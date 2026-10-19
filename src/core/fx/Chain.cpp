@@ -5,9 +5,11 @@
 #include "Clean.h"
 #include "Comp.h"
 #include "DeEss.h"
+#include "Delay.h"
 #include "Doubler.h"
 #include "Mapping.h"
 #include "Radio.h"
+#include "Reverb.h"
 #include "Shift.h"
 #include "Smooth.h"
 #include "Warmth.h"
@@ -36,6 +38,8 @@ Chain::Factory Chain::defaultFactory()
             case ModuleId::air: return std::make_unique<Air>();
             case ModuleId::radio: return std::make_unique<Radio>();
             case ModuleId::doubler: return std::make_unique<Doubler>();
+            case ModuleId::delay: return std::make_unique<Delay>();
+            case ModuleId::reverb: return std::make_unique<Reverb>();
             case ModuleId::smooth: return std::make_unique<Smooth>();
             default: return std::make_unique<Passthrough> (m);
         }
