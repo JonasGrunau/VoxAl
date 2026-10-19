@@ -73,15 +73,15 @@ namespace
 
     struct Run
     {
-        VocanalProcessor& proc;
-        VocanalEditor& editor;
+        VocAnalProcessor& proc;
+        VocAnalEditor& editor;
     };
 
     void pump (int ms) { juce::MessageManager::getInstance()->runDispatchLoopUntil (ms); }
 
     const char* env (const char* name) { return std::getenv (name); }
 
-    void setPlain (VocanalProcessor& p, const juce::String& id, float plain)
+    void setPlain (VocAnalProcessor& p, const juce::String& id, float plain)
     {
         if (auto* prm = p.apvts.getParameter (id))
             prm->setValueNotifyingHost (prm->convertTo0to1 (plain));
@@ -162,7 +162,7 @@ namespace
     // Plays the voice (main) and the beat (sidechain, when there is one) in
     // 512-sample blocks with the transport running from `position` on,
     // ticking the editor about 30 times a second like its timer.
-    void play (VocanalProcessor& p, VocanalEditor& ed, TempoPlayHead& head, const Material& m, double fs, double seconds, size_t& position)
+    void play (VocAnalProcessor& p, VocAnalEditor& ed, TempoPlayHead& head, const Material& m, double fs, double seconds, size_t& position)
     {
         const int channels = std::max (2, p.getTotalNumInputChannels());
         juce::AudioBuffer<float> buf (std::max (channels, p.getTotalNumOutputChannels()), 512);
@@ -191,7 +191,7 @@ namespace
         position = total;
     }
 
-    void stopTransport (VocanalProcessor& p, TempoPlayHead& head)
+    void stopTransport (VocAnalProcessor& p, TempoPlayHead& head)
     {
         head.playing = false;
         juce::AudioBuffer<float> buf (std::max (2, p.getTotalNumInputChannels()), 512);
@@ -328,7 +328,7 @@ namespace
         c.mouseDoubleClick (eventFor (c, at, at, false, 2));
     }
 
-    int dialTest (VocanalProcessor& proc, VocanalEditor& ed)
+    int dialTest (VocAnalProcessor& proc, VocAnalEditor& ed)
     {
         Checks check;
         auto& dial = ed.chain().card (ModuleId::comp).hero();
@@ -366,7 +366,7 @@ namespace
         return check.failures;
     }
 
-    int dndTest (VocanalProcessor& proc, VocanalEditor& ed)
+    int dndTest (VocAnalProcessor& proc, VocAnalEditor& ed)
     {
         Checks check;
         auto& strip = ed.chain();
@@ -441,7 +441,7 @@ namespace
         setenv ("VOCANAL_PRESET_FOLDER", folder.getFullPathName().toRawUTF8(), 1);
         check (PresetManager::folder() == folder, "VOCANAL_PRESET_FOLDER moves the folder");
 
-        VocanalProcessor proc;
+        VocAnalProcessor proc;
         proc.setRateAndBufferSizeDetails (fs, 512);
         proc.prepareToPlay (fs, 512);
         auto& pm = proc.presets;
@@ -535,7 +535,7 @@ namespace
         setPlain (proc, "warmth", 22.f);
         juce::MemoryBlock state;
         proc.getStateInformation (state);
-        VocanalProcessor other;
+        VocAnalProcessor other;
         other.setStateInformation (state.getData(), (int) state.getSize());
         check (other.presets.name() == "Snap Lead" && other.presets.isEdited() && other.presets.isUser(), "a session brings back Snap Lead *");
         setPlain (other, "warmth", 0.f);
@@ -546,7 +546,7 @@ namespace
         return check.failures;
     }
 
-    int audit (VocanalEditor& ed)
+    int audit (VocAnalEditor& ed)
     {
         const float room = ed.footerHelpWidth();
         const auto f = theme::mono (theme::size::help);
@@ -616,7 +616,7 @@ int main (int argc, char** argv)
         if (state == nullptr) { std::printf ("unknown state '%s'\n", name.toRawUTF8()); ++failures; continue; }
 
         // A fresh instance per state: nothing carries over between shots.
-        VocanalProcessor proc;
+        VocAnalProcessor proc;
         if (state->noSidechain)
             if (auto* bus = proc.getBus (true, 1)) bus->enable (false);
         if (! state->preset.empty()) proc.presets.loadFactory (voc::factoryIndexOf (state->preset));
@@ -633,8 +633,8 @@ int main (int argc, char** argv)
         proc.setPlayHead (&head);
         proc.setRateAndBufferSizeDetails (fs, 512);
         proc.prepareToPlay (fs, 512);
-        std::unique_ptr<VocanalEditor> editor (dynamic_cast<VocanalEditor*> (proc.createEditor()));
-        if (editor == nullptr) { std::printf ("createEditor() did not return a VocanalEditor\n"); return 1; }
+        std::unique_ptr<VocAnalEditor> editor (dynamic_cast<VocAnalEditor*> (proc.createEditor()));
+        if (editor == nullptr) { std::printf ("createEditor() did not return a VocAnalEditor\n"); return 1; }
 
         pump (50);
         const auto m = material (fs, state->faults);

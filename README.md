@@ -2,9 +2,9 @@
 
 A whole vocal chain in one plugin, built for psytrance vocals: clean-up, de-breath, compression, saturation, de-essing, air, a radio voice, a doubler, pitch and formant shifting, a ducked tempo delay and a reverb. Most modules are one knob: the plugin finds what to fix and the knob says how much. Drag the cards into any order; the default order is the one a mix engineer would patch.
 
-![Vocanal with the Psy Lead preset on the synthetic voice](docs/screenshot.png)
+![VocAnal with the Psy Lead preset on the synthetic voice](docs/screenshot.png)
 
-*v0.1.0, the first release: installers for macOS and Windows under [Releases](../../releases/latest), not yet signed.* Every module works, with ten factory presets; how it sounds has only been measured, not yet heard in a DAW.
+*v0.1.1: installers for macOS and Windows under [Releases](../../releases/latest), not yet signed.* Every module works, with ten factory presets; how it sounds has only been measured, not yet heard in a DAW.
 
 ```
 in ─┬─ CLEAN ─ BREATH ─ SHIFT ─ SMOOTH ─ COMP ─ WARMTH ─ DE-ESS ─ AIR ─ RADIO ─ DOUBLE ─ DELAY ─ REVERB ─┐ wet
@@ -19,7 +19,7 @@ VST3 and Audio Unit for macOS (universal), VST3 for Windows. JUCE 8. An optional
 | Module | Knob | What it does |
 |--------|------|--------------|
 | **CLEAN** | **Clean** | Takes out what a voice doesn't need below its body: rumble under the lowest note, a boomy or muddy resonance that stays at one pitch whatever you sing, and the thump of a plosive. 0 = off. |
-| | **Focus** | Auto: Vocanal listens for 6 s of voice, then holds what it learned (the corner and the two cuts show in the panel). Manual: the values stay where you set them. **Re-learn** listens again. |
+| | **Focus** | Auto: VocAnal listens for 6 s of voice, then holds what it learned (the corner and the two cuts show in the panel). Manual: the values stay where you set them. **Re-learn** listens again. |
 | | **High-Pass** | Switches the rumble filter on or off (it sits at 0.7 × the voice's lowest notes). |
 | **BREATH** | **Breath** | Turns breaths down, up to 24 dB, and nothing else: quiet singing, a soft /h/ and the ends of words stay. 0 = off. |
 | | **Listen** | Plays only what Breath takes away. |
@@ -65,7 +65,7 @@ VST3 and Audio Unit for macOS (universal), VST3 for Windows. JUCE 8. An optional
 
 ## Presets
 
-Ten factory sounds, each levelled to the dry voice (within 1 LU on the test voice), so stepping through them compares sounds, not loudness: **Clean Lead**, **Psy Lead**, **Spoken Sample**, **Radio Voice**, **Telephone Break** (RADIO moved after DELAY, so the echoes come down the line too), **Wide Chant**, **Intimate**, **Dub Throw**, **Alien**, **Upfront Hook**, plus **Init**. ◂ ▸ step through them and then your own; **SAVE** and the **⋯** menu save, rename and delete yours (`~/Documents/Vocanal/Presets/*.vocanal`). A preset never carries what CLEAN, COMP and DE-ESS learned from your take, and **MIX LOCK** keeps the Mix where you set it.
+Ten factory sounds, each levelled to the dry voice (within 1 LU on the test voice), so stepping through them compares sounds, not loudness: **Clean Lead**, **Psy Lead**, **Spoken Sample**, **Radio Voice**, **Telephone Break** (RADIO moved after DELAY, so the echoes come down the line too), **Wide Chant**, **Intimate**, **Dub Throw**, **Alien**, **Upfront Hook**, plus **Init**. ◂ ▸ step through them and then your own; **SAVE** and the **⋯** menu save, rename and delete yours (`~/Documents/VocAnal/Presets/*.vocanal`). A preset never carries what CLEAN, COMP and DE-ESS learned from your take, and **MIX LOCK** keeps the Mix where you set it.
 
 Knobs: drag up or down (Shift for fine steps) or use the wheel; double-click a knob to reset it to its default; double-click the value under it to type one.
 

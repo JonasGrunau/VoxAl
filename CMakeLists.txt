@@ -11,8 +11,8 @@ if(NOT CMAKE_OSX_DEPLOYMENT_TARGET)
 endif()
 
 # Release builds pass the tag's version, e.g. -DVOCANAL_VERSION=1.2.0.
-set(VOCANAL_VERSION "0.1.0" CACHE STRING "Plugin version, MAJOR.MINOR.PATCH")
-project(Vocanal VERSION ${VOCANAL_VERSION} LANGUAGES C CXX)
+set(VOCANAL_VERSION "0.1.1" CACHE STRING "Plugin version, MAJOR.MINOR.PATCH")
+project(VocAnal VERSION ${VOCANAL_VERSION} LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -80,13 +80,13 @@ if(VOCANAL_BUILD_PLUGIN)
         resources/fonts/IBMPlexMono-Regular.ttf
         resources/fonts/IBMPlexMono-Medium.ttf)
 
-    juce_add_plugin(Vocanal
+    juce_add_plugin(VocAnal
         COMPANY_NAME "Jonas Grunau"
         BUNDLE_ID "de.grunau.vocanal"
         PLUGIN_MANUFACTURER_CODE Jgru
         PLUGIN_CODE Vcnl
         FORMATS VST3 AU
-        PRODUCT_NAME "Vocanal"
+        PRODUCT_NAME "VocAnal"             # the bundles and what hosts show; the VST3/AU ids come from the codes
         # ---- EFFECT (BuildApp, PhaseFucker) -------------------------------
         IS_SYNTH FALSE
         NEEDS_MIDI_INPUT FALSE
@@ -108,7 +108,7 @@ if(VOCANAL_BUILD_PLUGIN)
         # its demo host replaced it; it never shipped it):
         # FORMATS VST3 AU Standalone
         # MICROPHONE_PERMISSION_ENABLED TRUE
-        # MICROPHONE_PERMISSION_TEXT "Vocanal listens to its inputs."
+        # MICROPHONE_PERMISSION_TEXT "VocAnal listens to its inputs."
         # ---- SIDECHAIN: nothing here. The bus is declared in the processor's
         # BusesProperties (.withInput ("Reference", stereo, true)), see the audio-plugin skill (references/build-and-release.md).
         COPY_PLUGIN_AFTER_BUILD ${VOCANAL_COPY_PLUGIN})
@@ -127,16 +127,16 @@ if(VOCANAL_BUILD_PLUGIN)
         src/ui/ModulePanels.cpp
         src/ui/PresetBar.cpp)
 
-    target_sources(Vocanal PRIVATE ${VOCANAL_UI_SOURCES})
-    target_include_directories(Vocanal PRIVATE src)
+    target_sources(VocAnal PRIVATE ${VOCANAL_UI_SOURCES})
+    target_include_directories(VocAnal PRIVATE src)
 
-    target_compile_definitions(Vocanal PUBLIC
+    target_compile_definitions(VocAnal PUBLIC
         JUCE_WEB_BROWSER=0
         JUCE_USE_CURL=0
         JUCE_VST3_CAN_REPLACE_VST2=0
         JUCE_DISPLAY_SPLASH_SCREEN=0)
 
-    target_link_libraries(Vocanal
+    target_link_libraries(VocAnal
         PRIVATE
             vocanal_core
             vocanal_assets
@@ -156,7 +156,7 @@ if(VOCANAL_BUILD_PLUGIN)
     target_sources(vocanal_snapshot PRIVATE tools/Snapshot.cpp ${VOCANAL_UI_SOURCES})
     target_include_directories(vocanal_snapshot PRIVATE src tests)
     target_compile_definitions(vocanal_snapshot PRIVATE
-        JucePlugin_Name="Vocanal"
+        JucePlugin_Name="VocAnal"
         JucePlugin_VersionString="${PROJECT_VERSION}"
         JUCE_MODAL_LOOPS_PERMITTED=1
         JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JUCE_DISPLAY_SPLASH_SCREEN=0)
@@ -167,11 +167,11 @@ if(VOCANAL_BUILD_PLUGIN)
     # Dev tool: the plugin in a window with a built-in psytrance loop (or a
     # file) playing through it. ./start.sh runs it.
     # (An instrument has no demo host: PsyBox's start.sh opens its Standalone.)
-    juce_add_gui_app(vocanal_demo PRODUCT_NAME "Vocanal Demo")
+    juce_add_gui_app(vocanal_demo PRODUCT_NAME "VocAnal Demo")
     target_sources(vocanal_demo PRIVATE tools/Demo.cpp ${VOCANAL_UI_SOURCES})
     target_include_directories(vocanal_demo PRIVATE src tests)
     target_compile_definitions(vocanal_demo PRIVATE
-        JucePlugin_Name="Vocanal"
+        JucePlugin_Name="VocAnal"
         JucePlugin_VersionString="${PROJECT_VERSION}"
         JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JUCE_DISPLAY_SPLASH_SCREEN=0)
     target_link_libraries(vocanal_demo PRIVATE

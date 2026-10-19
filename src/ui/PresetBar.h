@@ -3,7 +3,7 @@
 #include "Controls.h"
 #include "Layout.h"
 
-class VocanalProcessor;
+class VocAnalProcessor;
 
 // The preset bar in the masthead: PRESET over [◂] [name ⌄] [▸] [SAVE] [⋯].
 //   ◂ ▸     the factory presets, then yours, round and round
@@ -17,7 +17,7 @@ class VocanalProcessor;
 class PresetBar : public juce::Component
 {
 public:
-    explicit PresetBar (VocanalProcessor& p);
+    explicit PresetBar (VocAnalProcessor& p);
     ~PresetBar() override;
 
     void refresh();   // once per editor tick
@@ -45,7 +45,7 @@ private:
     void finishNaming (bool commit);
     void hookHelp (TextKey& k);
 
-    VocanalProcessor& proc;
+    VocAnalProcessor& proc;
     TextKey prev, next, save, more;
     std::unique_ptr<juce::TextEditor> entry;
     bool renaming = false, overField = false, listOpen = false;

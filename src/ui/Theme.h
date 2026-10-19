@@ -7,7 +7,7 @@
 #include <functional>
 
 // =============================================================================
-// Vocanal theme: the house style (CI) of the plugin family.
+// VocAnal theme: the house style (CI) of the plugin family.
 //
 // The family look is PhaseFucker ("lab paper") and BuildApp ("night sheet"):
 // a printed drawing sheet. Warm neutral paper or warm black, ink and
@@ -107,8 +107,8 @@ namespace theme
         return p;
     }
 
-    // Vocanal: the night sheet with an ultraviolet accent (chosen 2026-10-19).
-    // ACCENT MEANS: what Vocanal is doing to the voice right now: the bands it
+    // VocAnal: the night sheet with an ultraviolet accent (chosen 2026-10-19).
+    // ACCENT MEANS: what VocAnal is doing to the voice right now: the bands it
     //               removes, the gain it takes, the rings of knobs that act.
     //               Nothing else on screen may use it; a module at rest steps
     //               back to the inks.

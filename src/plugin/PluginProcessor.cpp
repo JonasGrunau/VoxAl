@@ -46,12 +46,12 @@ namespace
     }
 } // namespace
 
-VocanalProcessor::VocanalProcessor()
+VocAnalProcessor::VocAnalProcessor()
     : AudioProcessor (BusesProperties()
                           .withInput ("Input", juce::AudioChannelSet::stereo(), true)
                           .withInput ("Duck Key", juce::AudioChannelSet::stereo(), true)
                           .withOutput ("Output", juce::AudioChannelSet::stereo(), true)),
-      apvts (*this, nullptr, "Vocanal", createLayout())
+      apvts (*this, nullptr, "VocAnal", createLayout())
 {
     for (size_t k = 0; k < voc::kNumParams; ++k)
     {
@@ -67,14 +67,14 @@ VocanalProcessor::VocanalProcessor()
     startTimerHz (10);   // learn and hold: latches what the modules learned
 }
 
-VocanalProcessor::~VocanalProcessor()
+VocAnalProcessor::~VocAnalProcessor()
 {
     stopTimer();
     cancelPendingUpdate();
     for (auto* p : params) p->removeListener (this);
 }
 
-juce::AudioProcessorValueTreeState::ParameterLayout VocanalProcessor::createLayout()
+juce::AudioProcessorValueTreeState::ParameterLayout VocAnalProcessor::createLayout()
 {
     using namespace juce;
     AudioProcessorValueTreeState::ParameterLayout layout;
@@ -123,7 +123,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout VocanalProcessor::createLayo
     return layout;
 }
 
-voc::Settings VocanalProcessor::settings() const noexcept
+voc::Settings VocAnalProcessor::settings() const noexcept
 {
     voc::Settings s;
     for (size_t k = 0; k < voc::kNumParams; ++k)
@@ -134,7 +134,7 @@ voc::Settings VocanalProcessor::settings() const noexcept
 
 // ---- Sounds, transactions, undo -------------------------------------------------
 
-VocanalProcessor::Sound VocanalProcessor::currentSound() const
+VocAnalProcessor::Sound VocAnalProcessor::currentSound() const
 {
     Sound s;
     for (size_t k = 0; k < voc::kNumParams; ++k) s.values[k] = raw[k]->load (std::memory_order_relaxed);
@@ -142,7 +142,7 @@ VocanalProcessor::Sound VocanalProcessor::currentSound() const
     return s;
 }
 
-void VocanalProcessor::applySound (const Sound& s, bool keepMix, bool withLearned)
+void VocAnalProcessor::applySound (const Sound& s, bool keepMix, bool withLearned)
 {
     const Change change (*this);
     for (size_t k = 0; k < voc::kNumParams; ++k)
@@ -163,7 +163,7 @@ void VocanalProcessor::applySound (const Sound& s, bool keepMix, bool withLearne
     updateHostDisplay (ChangeDetails().withNonParameterStateChanged (true));
 }
 
-void VocanalProcessor::setOrder (const voc::Order& o)
+void VocAnalProcessor::setOrder (const voc::Order& o)
 {
     if (! o.valid() || o == getOrder()) return;
     orderWord.store (o.pack(), std::memory_order_release);
@@ -171,12 +171,12 @@ void VocanalProcessor::setOrder (const voc::Order& o)
     pushHistory();
 }
 
-void VocanalProcessor::parameterGestureChanged (int, bool starting)
+void VocAnalProcessor::parameterGestureChanged (int, bool starting)
 {
     if (! starting) triggerAsyncUpdate();   // the undo step is taken on the message thread
 }
 
-void VocanalProcessor::pushHistory()
+void VocAnalProcessor::pushHistory()
 {
     auto now = currentSound();
     for (size_t k = 0; k < voc::kNumParams; ++k)
@@ -193,17 +193,17 @@ void VocanalProcessor::pushHistory()
     historyIndex = (int) history.size() - 1;
 }
 
-void VocanalProcessor::undo()
+void VocAnalProcessor::undo()
 {
     if (canUndo()) stepHistory (-1);
 }
 
-void VocanalProcessor::redo()
+void VocAnalProcessor::redo()
 {
     if (canRedo()) stepHistory (1);
 }
 
-void VocanalProcessor::stepHistory (int delta)
+void VocAnalProcessor::stepHistory (int delta)
 {
     cancelPendingUpdate();
     historyIndex += delta;
@@ -223,13 +223,13 @@ namespace
     }
 } // namespace
 
-bool VocanalProcessor::learning (voc::ModuleId m) const noexcept
+bool VocAnalProcessor::learning (voc::ModuleId m) const noexcept
 {
     const auto* spec = specOf (m);
     return spec != nullptr && plain (spec->flag) < 0.5f;
 }
 
-void VocanalProcessor::relearn (voc::ModuleId m)
+void VocAnalProcessor::relearn (voc::ModuleId m)
 {
     const auto* spec = specOf (m);
     if (spec == nullptr || learning (m)) return;
@@ -241,7 +241,7 @@ void VocanalProcessor::relearn (voc::ModuleId m)
 }
 
 // Audio thread, after the chain ran: each learning module's report.
-void VocanalProcessor::postLearnReports() noexcept
+void VocAnalProcessor::postLearnReports() noexcept
 {
     for (size_t i = 0; i < voc::kLearnSpecs.size(); ++i)
     {
@@ -256,7 +256,7 @@ void VocanalProcessor::postLearnReports() noexcept
 }
 
 // Message thread: a learning module that is confident gets its values held.
-void VocanalProcessor::timerCallback()
+void VocAnalProcessor::timerCallback()
 {
     for (size_t i = 0; i < voc::kLearnSpecs.size(); ++i)
     {
@@ -280,7 +280,7 @@ void VocanalProcessor::timerCallback()
 
 // ---- Audio --------------------------------------------------------------------
 
-bool VocanalProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
+bool VocAnalProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
 {
     const auto in = layouts.getMainInputChannelSet(), out = layouts.getMainOutputChannelSet();
     const auto ok = [] (const juce::AudioChannelSet& s) { return s == juce::AudioChannelSet::mono() || s == juce::AudioChannelSet::stereo(); };
@@ -294,7 +294,7 @@ bool VocanalProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
     return true;
 }
 
-void VocanalProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
+void VocAnalProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
     currentRate.store (sampleRate, std::memory_order_relaxed);
     lastSettings = settings();
@@ -311,7 +311,7 @@ void VocanalProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 
 // Audio thread, after the chain ran: what each module does now, from its
 // active instance, into the atomics the editor reads (about 60 times a second).
-void VocanalProcessor::publishDisplay (int n) noexcept
+void VocAnalProcessor::publishDisplay (int n) noexcept
 {
     if ((sincePublish += n) < publishEvery) return;
     sincePublish = 0;
@@ -362,7 +362,7 @@ void VocanalProcessor::publishDisplay (int n) noexcept
     disp.serial.fetch_add (1, rel);
 }
 
-voc::Transport VocanalProcessor::readTransport() noexcept
+voc::Transport VocAnalProcessor::readTransport() noexcept
 {
     voc::Transport t;
     if (auto* head = getPlayHead())
@@ -384,10 +384,10 @@ voc::Transport VocanalProcessor::readTransport() noexcept
     return t;
 }
 
-void VocanalProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer&) { process (buffer, false); }
-void VocanalProcessor::processBlockBypassed (juce::AudioBuffer<float>& buffer, juce::MidiBuffer&) { process (buffer, true); }
+void VocAnalProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer&) { process (buffer, false); }
+void VocAnalProcessor::processBlockBypassed (juce::AudioBuffer<float>& buffer, juce::MidiBuffer&) { process (buffer, true); }
 
-void VocanalProcessor::process (juce::AudioBuffer<float>& buffer, bool hostBypass) noexcept
+void VocAnalProcessor::process (juce::AudioBuffer<float>& buffer, bool hostBypass) noexcept
 {
     juce::ScopedNoDenormals noDenormals;
     const int n = buffer.getNumSamples();
@@ -480,7 +480,7 @@ namespace
     const juce::Identifier kOrderProp ("order"), kVersionProp ("stateVersion");
 }
 
-void VocanalProcessor::getStateInformation (juce::MemoryBlock& destData)
+void VocAnalProcessor::getStateInformation (juce::MemoryBlock& destData)
 {
     auto state = apvts.copyState();
     // The atomic is the truth (this may run off the message thread).
@@ -491,7 +491,7 @@ void VocanalProcessor::getStateInformation (juce::MemoryBlock& destData)
         copyXmlToBinary (*xml, destData);
 }
 
-void VocanalProcessor::setStateInformation (const void* data, int sizeInBytes)
+void VocAnalProcessor::setStateInformation (const void* data, int sizeInBytes)
 {
     const auto xml = getXmlFromBinary (data, sizeInBytes);
     if (xml == nullptr || ! xml->hasTagName (apvts.state.getType())) return;
@@ -504,6 +504,6 @@ void VocanalProcessor::setStateInformation (const void* data, int sizeInBytes)
     triggerAsyncUpdate();   // the loaded sound becomes an undo step
 }
 
-juce::AudioProcessorEditor* VocanalProcessor::createEditor() { return new VocanalEditor (*this); }
+juce::AudioProcessorEditor* VocAnalProcessor::createEditor() { return new VocAnalEditor (*this); }
 
-juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter() { return new VocanalProcessor(); }
+juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter() { return new VocAnalProcessor(); }

@@ -1,4 +1,4 @@
-# Vocanal
+# VocAnal
 
 ## Purpose
 A whole vocal chain in one psytrance-minded plugin (VST3 / AU, JUCE 8): smart one-knob modules (CLEAN, BREATH, SMOOTH, COMP, WARMTH, DE-ESS, AIR, RADIO, DOUBLE), pitch/formant SHIFT, a ducked tempo DELAY and a REVERB, in an order the user drags. SMOOTH is the one-knob harshness remover (soothe2-like behaviour, from Jonas's black-box notes `docs/soothe2-how-it-works.md`, which stay out of git). The plan, with the measurable targets, is `~/.claude/plans/i-want-to-build-cosmic-nautilus.md` (milestones M1–M8).
@@ -10,12 +10,12 @@ Invariants:
 - The latency is fixed per sample rate: the same in every order, at every quality, and at rest.
 - A reorder or a new sound never clicks.
 
-**Status:** M1–M8 done: all 12 modules, the editor, ten factory presets and user presets. Validated by measurement only (auval, pluginval 5 with GUI tests, the test suite, the bench); nobody has listened in a DAW yet. v0.1.0 is the first tagged release (installers unsigned: the signing secrets aren't set). The measured DELAY/REVERB targets are in memory (`vocanal-measurement-targets`). The chain, order, transitions, parameters, state, undo, sidechain, demo host, render tool and bench are in.
+**Status:** M1–M8 done: all 12 modules, the editor, ten factory presets and user presets. Validated by measurement only (auval, pluginval 5 with GUI tests, the test suite, the bench); nobody has listened in a DAW yet. Released: v0.1.0, then v0.1.1, which names it VocAnal everywhere (bundles, host name, CMake target, classes, state and preset tags). Installers are unsigned (the signing secrets aren't set). The measured DELAY/REVERB targets are in memory (`vocanal-measurement-targets`). The chain, order, transitions, parameters, state, undo, sidechain, demo host, render tool and bench are in.
 
 ## Key Files
 | File | Description |
 |------|-------------|
-| `CMakeLists.txt` | The core builds with `-fcx-limited-range` (complex products without the inf/NaN rescue: 6x faster FFTs). Targets: `vocanal_core` (static lib, no JUCE), the `Vocanal` plugin, `vocanal_snapshot`, `vocanal_demo`, `vocanal_tests`, `vocanal_bench` (core only). Options `VOCANAL_BUILD_PLUGIN`, `VOCANAL_BUILD_TESTS`, `VOCANAL_COPY_PLUGIN` (off in CI). Cache var `VOCANAL_VERSION`. UI sources are listed once in `VOCANAL_UI_SOURCES` |
+| `CMakeLists.txt` | The core builds with `-fcx-limited-range` (complex products without the inf/NaN rescue: 6x faster FFTs). Targets: `vocanal_core` (static lib, no JUCE), the `VocAnal` plugin, `vocanal_snapshot`, `vocanal_demo`, `vocanal_tests`, `vocanal_bench` (core only). Options `VOCANAL_BUILD_PLUGIN`, `VOCANAL_BUILD_TESTS`, `VOCANAL_COPY_PLUGIN` (off in CI). Cache var `VOCANAL_VERSION`. UI sources are listed once in `VOCANAL_UI_SOURCES` |
 | `src/core/fx/Params.h/.cpp` | **The parameter table** (X-macro `VOC_PARAMS`): id (the save format), host name, unit, range, default, flags (`kAuto`, `kPreset`, `kLearned`), choice lists. `Settings` = every plain value plus `render`. Knob laws `toNormalised`/`fromNormalised` (log for Hz/ms/s), `offEnd` (where a knob says "Off"). The processor, presets, the undo history and the tests all read it |
 | `src/core/fx/Order.h/.cpp` | `ModuleId` (internal index, append only), `kModuleIds` (saved ids, never rename), `kDefaultOrder` with the reasoning, `Order` (pack into a uint64 with 4 bits per slot, `moved`, tolerant `parse`) |
 | `src/core/fx/Module.h` | The module contract (see below), `Transport`, `Block` (duck key + transport), `Passthrough` |
@@ -44,7 +44,7 @@ Invariants:
 | `src/ui/VoiceSpectrum.*` | A VOICE: input line (tap delayed by the latency) and filled output; REMOVED/ADDED from the modules' published gain curves (the processor's `Display` atomics, ~60 Hz), never from input − output; learned-Hz markers |
 | `src/ui/ChainStrip.*` | B CHAIN: twelve 62 px cards (power, name, hero dial, status row: LEARNING or what the module does now); drag to reorder with a gap where it lands (one undo step); click selects |
 | `src/ui/ModulePanels.*`, `Modules.h`, `Layout.h` | C: the twelve detail rows; per-module hero, power and help sentences; layout tokens |
-| `src/ui/PresetBar.*`, `src/plugin/PresetManager.*`, `src/plugin/Sound.h` | ◂ name ▸ SAVE ⋯; user presets as `.vocanal` XML (params, order, version) in `~/Documents/Vocanal/Presets` (`VOCANAL_PRESET_FOLDER` moves it); a load is one `applySound` transaction and one undo step; Delete moves to the Trash |
+| `src/ui/PresetBar.*`, `src/plugin/PresetManager.*`, `src/plugin/Sound.h` | ◂ name ▸ SAVE ⋯; user presets as `.vocanal` XML (params, order, version) in `~/Documents/VocAnal/Presets` (`VOCANAL_PRESET_FOLDER` moves it); a load is one `applySound` transaction and one undo step; Delete moves to the Trash |
 | `tests/StubModules.h` | Stand-ins with real latency (`Lookahead`), real tails (`Echo`), a shaper, a stateful filter and a key probe; `stubFactory()`, `delayFactory()` |
 | `tests/SynthVoice.h` | Synthetic voice with ground truth: labelled segments (vowel, sibilant, fricative, plosive, breath) and an exact vowel envelope, optional boom, harsh ring and loud-ess faults at known Hz |
 | `tools/Demo.cpp` | Demo host (`./start.sh [vocal.wav]`): a dry voice through the plugin, looped on whole bars with room for the tails, no beat. VOCANAL / DRY (the input delayed by the latency) for an A/B. Sources: every kit vocal, the synthetic voice, the synthetic voice with faults, your file. The Duck Key bus gets silence |
@@ -67,7 +67,7 @@ Invariants:
 - State copy: big buffers are `RingBuffer`s listed by `rings()` (same sizes and order in both instances). Everything else goes through `copySmallState()`. No pointer into a module's own storage may live in copied state.
 
 ### Rules the code keeps
-- **Parameter ids, choice lists and module ids are the save format.** Append only; bump the version when a meaning changes. v0.1.0 has shipped, so sessions and presets saved with it must keep loading.
+- **Parameter ids, choice lists and module ids are the save format.** Append only; bump the version when a meaning changes. From v0.1.1 on, sessions and presets saved with a release must keep loading (v0.1.0 used other state and preset tags; it was never used).
 - **The order is a ValueTree property**, `order = "clean,breath,..."`, not a host parameter: 11! orders don't fit a float-backed int, and a list loads tolerantly when a module is added. The packed atomic is the truth. Unknown ids are skipped; a missing module goes after its nearest default predecessor.
 - **Undo is psysynth-style snapshot history**, pushed on gesture end, card drop, preset load and session load. **Never give the APVTS an UndoManager**: it would record host automation.
 - **Presets, undo and session loads are transactions** (`Change`, `openChanges` before `patchEpoch`). While a transaction is open the audio thread holds the last whole sound (at most 1 s), then crossfades: A keeps the old knobs, B fades in on the new ones.
@@ -96,7 +96,7 @@ Invariants:
 ### Common Patterns
 - Namespaces: `voc` (core), `voc::dsp` (primitives), `theme` (UI tokens). Plugin/UI classes are global.
 - JUCE-style formatting: space before call parens `foo (x)`, 4-space indent, braces on their own line.
-- **Look:** night sheet `#131211`, ink `#ECE7DB`, accent **ultraviolet `#C4A4FE`**. It means "what Vocanal is doing to the voice right now" (removed bands, gain reduction, acting knob rings); a module at rest steps back to the inks. IBM Plex Sans Condensed + Plex Mono, flat, 2 px radius.
+- **Look:** night sheet `#131211`, ink `#ECE7DB`, accent **ultraviolet `#C4A4FE`**. It means "what VocAnal is doing to the voice right now" (removed bands, gain reduction, acting knob rings); a module at rest steps back to the inks. IBM Plex Sans Condensed + Plex Mono, flat, 2 px radius.
 
 ### Clean room
 - Valhalla Delay / VintageVerb (official installs): black-box measurement only.

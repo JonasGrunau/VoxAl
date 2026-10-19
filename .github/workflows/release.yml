@@ -8,8 +8,8 @@
 #
 # Template notes ({{...}} are placeholders; ${{ ... }} with spaces are GitHub
 # expressions and stay as they are):
-# - INSTRUMENT / STANDALONE (PsyBox): add Standalone/Vocanal.app to BUNDLES,
-#   Vocanal_Standalone to both Build steps, and use `auval -v aumu ...`.
+# - INSTRUMENT / STANDALONE (PsyBox): add Standalone/VocAnal.app to BUNDLES,
+#   VocAnal_Standalone to both Build steps, and use `auval -v aumu ...`.
 name: Release
 
 on:
@@ -42,8 +42,8 @@ jobs:
     runs-on: macos-latest
     env:
       VERSION: ${{ needs.version.outputs.version }}
-      OUT: build/Vocanal_artefacts/Release
-      BUNDLES: VST3/Vocanal.vst3 AU/Vocanal.component
+      OUT: build/VocAnal_artefacts/Release
+      BUNDLES: VST3/VocAnal.vst3 AU/VocAnal.component
       # Signing and notarization run when the certificate secret is set (README > Releases).
       SIGN: ${{ secrets.MACOS_CERTIFICATES_P12 != '' }}
     steps:
@@ -57,7 +57,7 @@ jobs:
           -DVOCANAL_BUILD_TESTS=ON -DVOCANAL_COPY_PLUGIN=OFF
 
       - name: Build
-        run: cmake --build build --parallel --target Vocanal_VST3 Vocanal_AU vocanal_tests
+        run: cmake --build build --parallel --target VocAnal_VST3 VocAnal_AU vocanal_tests
 
       - name: Test
         run: ./build/vocanal_tests
@@ -67,13 +67,13 @@ jobs:
           curl -fsSL -o pluginval.zip https://github.com/Tracktion/pluginval/releases/latest/download/pluginval_macOS.zip
           ditto -x -k pluginval.zip pluginval
           pluginval/pluginval.app/Contents/MacOS/pluginval --strictness-level 5 --validate-in-process --skip-gui-tests \
-            --validate "$OUT/VST3/Vocanal.vst3"
+            --validate "$OUT/VST3/VocAnal.vst3"
 
       # aufx = kAudioUnitType_Effect. An instrument (kAudioUnitType_MusicDevice) is aumu.
       - name: Validate (auval)
         run: |
           mkdir -p ~/Library/Audio/Plug-Ins/Components
-          ditto "$OUT/AU/Vocanal.component" ~/Library/Audio/Plug-Ins/Components/Vocanal.component
+          ditto "$OUT/AU/VocAnal.component" ~/Library/Audio/Plug-Ins/Components/VocAnal.component
           killall -9 AudioComponentRegistrar 2>/dev/null || true
           auval -v aufx Vcnl Jgru
 
@@ -113,7 +113,7 @@ jobs:
       - name: Package
         run: |
           [[ "$SIGN" == true ]] || echo "::warning::MACOS_CERTIFICATES_P12 is not set, so the macOS build is not signed"
-          packaging/macos/build-pkg.sh "$OUT" "$VERSION" "dist/Vocanal-$VERSION-macOS.pkg"
+          packaging/macos/build-pkg.sh "$OUT" "$VERSION" "dist/VocAnal-$VERSION-macOS.pkg"
 
       - name: Notarize
         if: env.SIGN == 'true'
@@ -121,7 +121,7 @@ jobs:
           NOTARY_APPLE_ID: ${{ secrets.NOTARY_APPLE_ID }}
           NOTARY_PASSWORD: ${{ secrets.NOTARY_PASSWORD }}
         run: |
-          pkg="dist/Vocanal-$VERSION-macOS.pkg"
+          pkg="dist/VocAnal-$VERSION-macOS.pkg"
           auth=(--apple-id "$NOTARY_APPLE_ID" --password "$NOTARY_PASSWORD" --team-id "$TEAM_ID")
           result=$(xcrun notarytool submit "$pkg" "${auth[@]}" --wait --timeout 1h --output-format json)
           echo "$result"
@@ -137,9 +137,9 @@ jobs:
       - name: Zip plug-ins
         run: |
           mkdir plugins
-          ditto "$OUT/VST3/Vocanal.vst3" plugins/Vocanal.vst3
-          ditto "$OUT/AU/Vocanal.component" plugins/Vocanal.component
-          ditto -c -k plugins "dist/Vocanal-$VERSION-macOS-VST3-AU.zip"
+          ditto "$OUT/VST3/VocAnal.vst3" plugins/VocAnal.vst3
+          ditto "$OUT/AU/VocAnal.component" plugins/VocAnal.component
+          ditto -c -k plugins "dist/VocAnal-$VERSION-macOS-VST3-AU.zip"
 
       - uses: actions/upload-artifact@v7
         with:
@@ -163,7 +163,7 @@ jobs:
           -DVOCANAL_BUILD_TESTS=ON -DVOCANAL_COPY_PLUGIN=OFF
 
       - name: Build
-        run: cmake --build build --config Release --parallel --target Vocanal_VST3 vocanal_tests
+        run: cmake --build build --config Release --parallel --target VocAnal_VST3 vocanal_tests
 
       - name: Test
         run: build\Release\vocanal_tests.exe
@@ -173,10 +173,10 @@ jobs:
 
       - name: Package
         run: |
-          $out = "$PWD\build\Vocanal_artefacts\Release"
-          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DAppVersion=$env:VERSION" "/DArtefacts=$out" "/O$PWD\dist" packaging\windows\Vocanal.iss
+          $out = "$PWD\build\VocAnal_artefacts\Release"
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DAppVersion=$env:VERSION" "/DArtefacts=$out" "/O$PWD\dist" packaging\windows\VocAnal.iss
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          Compress-Archive -Path "$out\VST3\Vocanal.vst3" -DestinationPath "dist\Vocanal-$env:VERSION-Windows-VST3.zip"
+          Compress-Archive -Path "$out\VST3\VocAnal.vst3" -DestinationPath "dist\VocAnal-$env:VERSION-Windows-VST3.zip"
 
       - uses: actions/upload-artifact@v7
         with:
@@ -202,4 +202,4 @@ jobs:
           flags=()
           [[ "$VERSION" == *-* ]] && flags+=(--prerelease)
           gh release create "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" \
-            --verify-tag --title "Vocanal $VERSION" --generate-notes "${flags[@]}"
+            --verify-tag --title "VocAnal $VERSION" --generate-notes "${flags[@]}"

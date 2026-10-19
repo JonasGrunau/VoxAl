@@ -16,7 +16,7 @@
 #include <cmath>
 #include <vector>
 
-// Vocanal: a whole vocal chain in one plugin. Smart one-knob modules (CLEAN,
+// VocAnal: a whole vocal chain in one plugin. Smart one-knob modules (CLEAN,
 // BREATH, COMP, WARMTH, DE-ESS, AIR, RADIO, DOUBLE), pitch/formant SHIFT, and
 // a ducked tempo DELAY and a REVERB, in an order the user drags. Every
 // parameter comes from the core table (src/core/fx/Params.h); the order is
@@ -29,14 +29,14 @@
 //     complete sound while one is open and then crossfades to the new one.
 //   - Audio thread: reads the parameter atomics and the packed order once
 //     per block, never locks, never allocates.
-class VocanalProcessor : public juce::AudioProcessor,
+class VocAnalProcessor : public juce::AudioProcessor,
                          private juce::AudioProcessorParameter::Listener,
                          private juce::AsyncUpdater,
                          private juce::Timer
 {
 public:
-    VocanalProcessor();
-    ~VocanalProcessor() override;
+    VocAnalProcessor();
+    ~VocAnalProcessor() override;
 
     // ---- AudioProcessor -------------------------------------------------------
     void prepareToPlay (double sampleRate, int samplesPerBlock) override;
@@ -78,7 +78,7 @@ public:
 
     // A whole sound at once (preset, undo step): plain values for every
     // parameter that presets carry, and the order. One transaction.
-    using Sound = VocanalSound;
+    using Sound = VocAnalSound;
     Sound currentSound() const;   // any thread
     // A preset sets the parameters presets carry; an undo step also restores
     // the learned values (withLearned).
@@ -169,7 +169,7 @@ private:
     // parameter, close when every value is written. Nests.
     struct Change
     {
-        explicit Change (VocanalProcessor& p) : proc (p)
+        explicit Change (VocAnalProcessor& p) : proc (p)
         {
             proc.openChanges.fetch_add (1);   // before the epoch: whoever sees the new epoch sees it open
             proc.patchEpoch.fetch_add (1);
@@ -177,7 +177,7 @@ private:
         ~Change() { proc.openChanges.fetch_sub (1); }
         Change (const Change&) = delete;
         Change& operator= (const Change&) = delete;
-        VocanalProcessor& proc;
+        VocAnalProcessor& proc;
     };
     friend struct Change;
     std::atomic<uint32_t> patchEpoch { 0 };
@@ -219,5 +219,5 @@ private:
     int historyIndex = -1;
     void stepHistory (int delta);
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (VocanalProcessor)
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (VocAnalProcessor)
 };

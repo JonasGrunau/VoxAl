@@ -7,7 +7,7 @@
 #include <array>
 #include <memory>
 
-class VocanalProcessor;
+class VocAnalProcessor;
 class ChainStrip;
 
 // One card of the chain: the power box and the module's name, its hero
@@ -18,7 +18,7 @@ class ChainStrip;
 class ModuleCard : public juce::Component
 {
 public:
-    ModuleCard (ChainStrip& strip, VocanalProcessor& p, voc::ModuleId m);
+    ModuleCard (ChainStrip& strip, VocAnalProcessor& p, voc::ModuleId m);
 
     voc::ModuleId module() const noexcept { return id; }
     Dial& hero() noexcept { return dial; }
@@ -59,7 +59,7 @@ private:
 class ChainStrip : public juce::Component, private juce::Timer
 {
 public:
-    explicit ChainStrip (VocanalProcessor& p);
+    explicit ChainStrip (VocAnalProcessor& p);
     ~ChainStrip() override;
 
     void refresh();   // once per editor tick: the order, power, learning, activity
@@ -87,7 +87,7 @@ private:
     voc::Order shown() const;   // with the dragged card at its landing slot
     void layoutCards();
 
-    VocanalProcessor& proc;
+    VocAnalProcessor& proc;
     std::array<std::unique_ptr<ModuleCard>, voc::kNumModules> cards;
     voc::Order order;
     std::array<float, voc::kNumModules> cardX {};
