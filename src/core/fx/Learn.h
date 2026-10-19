@@ -37,7 +37,7 @@ struct LearnSpec
 
 inline constexpr std::array<LearnSpec, 3> kLearnSpecs { {
     { ModuleId::clean, P::cleanLearned, { P::cleanHpfHz, P::cleanBoomHz, P::cleanMudHz, P::cleanBoomDb, P::cleanMudDb }, 5 },
-    { ModuleId::comp,  P::compLearned,  { P::compRef }, 1 },
+    { ModuleId::comp,  P::compLearned,  { P::compRef, P::compSpread }, 2 },
     { ModuleId::deess, P::deessLearned, { P::deessHz }, 1 },
 } };
 

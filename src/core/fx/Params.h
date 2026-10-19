@@ -84,6 +84,7 @@ namespace choices
     X (comp,          "comp",           "Comp",             Unit::percent,     0.f,   100.f,     0.f, pf::kAuto | pf::kPreset, none)      \
     X (compRef,       "comp_ref",       "Comp Reference",   Unit::lufs,      -40.f,    -6.f,   -18.f, pf::kLearned, none)                 \
     X (compLearned,   "comp_learned",   "Comp Learned",     Unit::toggle,      0.f,     1.f,     0.f, pf::kLearned, none)                 \
+    X (compSpread,    "comp_spread",    "Comp Spread",      Unit::db,          0.f,     6.f,     4.f, pf::kLearned, none)                 \
     X (warmthOn,      "warmth_on",      "Warmth On",        Unit::toggle,      0.f,     1.f,     1.f, pf::kPreset, none)                  \
     X (warmth,        "warmth",         "Warmth",           Unit::percent,     0.f,   100.f,     0.f, pf::kAuto | pf::kPreset, none)      \
     X (deessOn,       "deess_on",       "De-ess On",        Unit::toggle,      0.f,     1.f,     1.f, pf::kPreset, none)                  \

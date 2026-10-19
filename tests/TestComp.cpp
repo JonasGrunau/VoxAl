@@ -14,11 +14,12 @@ using voc::P;
 
 namespace
 {
-    voc::Settings compSettings (double amount, double refLufs = -18.0, bool held = true)
+    voc::Settings compSettings (double amount, double refLufs = -18.0, bool held = true, double spreadDb = voc::Comp::kDefaultSpreadDb)
     {
         voc::Settings s;
         s[P::comp] = (float) amount;
         s[P::compRef] = (float) refLufs;
+        s[P::compSpread] = (float) spreadDb;
         s[P::compLearned] = held ? 1.f : 0.f;
         return s;
     }
@@ -53,6 +54,54 @@ namespace
     Stereo run (const Stereo& x, double fs, const voc::Settings& s, int block = 64)
     {
         return run (x, fs, s, block, [] (size_t, voc::Settings&) {}, [] (size_t, const voc::Comp&) {});
+    }
+
+    // What a learning COMP at rest reports after the whole take: the
+    // reference and the spread the message thread would hold.
+    struct Learned { double ref, spread; bool ready; };
+
+    Learned learnedAtRest (const Stereo& x, double fs)
+    {
+        Learned l {};
+        run (x, fs, voc::Settings {}, 64, [] (size_t, voc::Settings&) {}, [&] (size_t, const voc::Comp& m) {
+            const auto r = m.learnReport();
+            l = { r.values[0], r.values[1], r.ready };
+        });
+        return l;
+    }
+
+    // A take as dynamic as a real one. The synthetic voice is unusually
+    // even: its 10 ms levels span ~4 dB from the 10th to the 90th
+    // percentile, real dry takes ~17 dB. Accents on the syllables, levels on
+    // the phrases and a decay on each vowel widen it; (8, 5, 15) matches
+    // the real takes' spread (10th / 50th / 90th / 99th percentile -10.4 /
+    // -0.7 / +6.0 / +10.2 dB re the reference; two real takes: -10.2..-12.3
+    // / -1.0..-2.2 / +6.9..+7.2 / +8.8..+10.3).
+    Signal dynamicTake (double accentDb, double phraseDb, double decayDb, uint64_t seed, double seconds = 16.0)
+    {
+        const double fs = 48000.0;
+        synth::Options o;
+        o.fs = fs;
+        o.seconds = seconds;
+        o.seed = seed;
+        const auto v = synth::make (o);
+        auto mono = v.mono;
+        Rng rng (3);
+        double phrase = 0.0;
+        size_t lastEnd = 0;
+        for (const auto& s : v.segments)
+        {
+            if (s.start > lastEnd + (size_t) (0.3 * fs)) phrase = phraseDb * rng.uniform();
+            const double accent = s.type == synth::Seg::vowel ? accentDb * rng.uniform() : 0.0;
+            for (size_t i = s.start; i < s.end; ++i)
+            {
+                const double t = (double) (i - s.start) / (double) (s.end - s.start);
+                const double decay = s.type == synth::Seg::vowel ? -decayDb * t : 0.0;
+                mono[i] = (float) (v.mono[i] * fromDb (phrase + accent + decay));
+            }
+            lastEnd = std::max (lastEnd, s.end);
+        }
+        return mono;
     }
 
     // The GR meter after every block.
@@ -223,6 +272,23 @@ TEST_CASE ("Comp: the curve's laws: thresholds down, ratios and makeup up with t
     CHECK (voc::Comp::curve (0.0).makeup == 0.0);
     CHECK (std::abs (1.0 / (1.0 - voc::Comp::curve (1.0).peakSlope) - 4.0) < 1e-9);
     CHECK (std::abs (1.0 / (1.0 - voc::Comp::curve (1.0).levelSlope) - 3.0) < 1e-9);
+
+    // The makeup grows with the spread; with none it is the curve on the
+    // body itself; the table reads the summed law.
+    for (double a : { 0.3, 0.7, 1.0 })
+    {
+        double last = -1.0;
+        for (double sp = 0.0; sp <= 6.0; sp += 0.25)
+        {
+            const auto c = voc::Comp::curve (a, sp);
+            const double law = voc::Comp::lossDb (c, voc::Comp::effectiveSpreadDb (a, sp));
+            INFO ("Comp " << 100.0 * a << " %, spread " << sp << " dB: makeup " << c.makeup << " dB, the law " << law << " dB");
+            CHECK (c.makeup >= last);
+            CHECK (std::abs (c.makeup - law) < 0.02);
+            last = c.makeup;
+        }
+        CHECK (std::abs (voc::Comp::curve (a, 0.0).makeup - voc::Comp::reductionAtDb (voc::Comp::curve (a, 0.0), 0.0)) < 1e-3);
+    }
 }
 
 TEST_CASE ("Comp: stereo is linked, so the image doesn't move", "[comp]")
@@ -311,8 +377,8 @@ TEST_CASE ("Comp: the noise between phrases isn't lifted by the makeup", "[comp]
     o.noiseFloorDb = -70.0;
     const auto v = synth::make (o);
     const auto x = both (v.mono);
-    const double ref = integratedLufs (x, fs);
-    const auto y = run (x, fs, compSettings (70.0, ref));
+    const auto held = learnedAtRest (x, fs);
+    const auto y = run (x, fs, compSettings (70.0, held.ref, true, held.spread));
     const auto lat = (size_t) latencyAt (fs);
     std::vector<double> gain;
     size_t end = 0;
@@ -331,7 +397,7 @@ TEST_CASE ("Comp: the noise between phrases isn't lifted by the makeup", "[comp]
     double worst = -1e9;
     for (double g : gain) worst = std::max (worst, g);
     INFO (gain.size() << " pauses: the noise's gain " << meanOf (gain) << " dB mean, " << worst << " dB at most (makeup "
-                      << voc::Comp::makeupDb (0.7) << " dB)");
+                      << voc::Comp::makeupDb (0.7, held.spread) << " dB)");
     CHECK (worst <= 1.5);
 }
 
@@ -342,12 +408,12 @@ TEST_CASE ("Comp: a 10 dB verse/chorus step shrinks to 5 dB or less at 70 %", "[
     const auto half = v.size() / 2;
     for (size_t i = 0; i < half; ++i) v[i] *= (float) fromDb (-10.0);
     const auto x = both (v);
-    const double ref = integratedLufs (x, fs);   // the take's loudness, as the learner would hold it
-    const auto y = run (x, fs, compSettings (70.0, ref));
+    const auto held = learnedAtRest (x, fs);   // the take's loudness and spread, as the learner holds them
+    const auto y = run (x, fs, compSettings (70.0, held.ref, true, held.spread));
     const auto skip = (size_t) (2.0 * fs);
     const double stepIn = integratedLufs (x, fs, half + skip, x.size()) - integratedLufs (x, fs, skip, half);
     const double stepOut = integratedLufs (y, fs, half + skip, y.size()) - integratedLufs (y, fs, skip, half);
-    INFO ("reference " << ref << " LUFS; step in " << stepIn << " dB, out " << stepOut << " dB");
+    INFO ("reference " << held.ref << " LUFS, spread " << held.spread << " dB; step in " << stepIn << " dB, out " << stepOut << " dB");
     CHECK (std::abs (stepIn - 10.0) < 0.5);
     CHECK (stepOut <= 5.0);
     CHECK (stepOut > 0.0);   // levelled, not flipped
@@ -355,8 +421,9 @@ TEST_CASE ("Comp: a 10 dB verse/chorus step shrinks to 5 dB or less at 70 %", "[
 
 TEST_CASE ("Comp: the loudness stays within 1 dB across the knob", "[comp][level]")
 {
-    // The reference held at the voice's measured loudness; the output is
-    // compared with the input delayed by the latency (the same samples).
+    // The reference held at the voice's measured loudness, the spread at the
+    // learned one; the output is compared with the input delayed by the
+    // latency (the same samples).
     const double fs = 48000.0;
     const auto lat = (size_t) latencyAt (fs);
     struct Take { uint64_t seed; bool female; };
@@ -366,57 +433,61 @@ TEST_CASE ("Comp: the loudness stays within 1 dB across the knob", "[comp][level
         o.female = take.female;
         const auto x = both (synth::make (o).mono);
         const double ref = integratedLufs (x, fs), base = integratedLufs ({ delayedBy (x.left, lat), delayedBy (x.right, lat) }, fs);
+        const double spread = learnedAtRest (x, fs).spread;
         for (double amount = 0.0; amount <= 100.0; amount += 10.0)
         {
-            const double change = integratedLufs (run (x, fs, compSettings (amount, ref)), fs) - base;
-            INFO ("seed " << take.seed << (take.female ? " (female)" : "") << ", reference " << ref << " LUFS, Comp "
-                          << amount << " %: " << change << " dB");
+            const double change = integratedLufs (run (x, fs, compSettings (amount, ref, true, spread)), fs) - base;
+            INFO ("seed " << take.seed << (take.female ? " (female)" : "") << ", reference " << ref << " LUFS, spread " << spread
+                          << " dB, Comp " << amount << " %: " << change << " dB");
             CHECK (std::abs (change) <= 1.0);
         }
     }
 }
 
-TEST_CASE ("Comp: a take as dynamic as a real one stays within 2 dB (reported)", "[comp][level]")
+TEST_CASE ("Comp: takes as dynamic as real ones keep their loudness within 1 dB too", "[comp][level]")
 {
-    // The synthetic voice is unusually even: its 10 ms levels span ~4 dB
-    // from the 10th to the 90th percentile, real dry takes ~17 dB. Here the
-    // syllables get accents (+-8 dB), the phrases levels (+-5 dB) and the
-    // vowels a 15 dB decay, which matches the real takes' spread (10th / 50th
-    // / 90th / 99th percentile -10.4 / -0.7 / +6.0 / +10.2 dB re the
-    // reference; two real takes: -10.2..-12.3 / -1.0..-2.2 / +6.9..+7.2 /
-    // +8.8..+10.3). The makeup is fixed per knob position and can't know a
-    // take's dynamics; the loud parts carry the loudness and are reduced
-    // most, so a dynamic take comes out a little quieter. This records how
-    // much.
+    // A fixed makeup can't know a take's dynamics: the loud levels carry the
+    // loudness and are reduced most, so a dynamic take lost up to 1.6 dB
+    // (real takes 1.9 dB) with one spread for all. With the take's spread
+    // learned and held, the makeup follows it. (8, 5, 15) is the recipe
+    // effectiveSpreadDb was fitted on, at another seed here; (6, 8, 10) was
+    // not in the fit at all.
     const double fs = 48000.0;
-    const auto v = voice (16.0, 9);
-    auto mono = v.mono;
-    Rng rng (3);
-    double phrase = 0.0;
-    size_t lastEnd = 0;
-    for (const auto& s : v.segments)
-    {
-        if (s.start > lastEnd + (size_t) (0.3 * fs)) phrase = 5.0 * rng.uniform();
-        const double accent = s.type == synth::Seg::vowel ? 8.0 * rng.uniform() : 0.0;
-        for (size_t i = s.start; i < s.end; ++i)
-        {
-            const double decay = s.type == synth::Seg::vowel ? -15.0 * (double) (i - s.start) / (double) (s.end - s.start) : 0.0;
-            mono[i] = (float) (v.mono[i] * fromDb (phrase + accent + decay));
-        }
-        lastEnd = std::max (lastEnd, s.end);
-    }
-    const auto x = both (mono);
     const auto lat = (size_t) latencyAt (fs);
-    const double ref = integratedLufs (x, fs), base = integratedLufs ({ delayedBy (x.left, lat), delayedBy (x.right, lat) }, fs);
-    double worst = 0.0;
-    for (double amount = 0.0; amount <= 100.0; amount += 10.0)
+    struct Recipe { double accent, phrase, decay; uint64_t seed; };
+    for (const auto r : { Recipe { 8.0, 5.0, 15.0, 4 }, Recipe { 6.0, 8.0, 10.0, 21 } })
     {
-        const double change = integratedLufs (run (x, fs, compSettings (amount, ref)), fs) - base;
-        UNSCOPED_INFO ("Comp " << amount << " %: " << change << " dB");
-        worst = std::max (worst, std::abs (change));
+        const auto mono = dynamicTake (r.accent, r.phrase, r.decay, r.seed);
+        const auto x = both (mono);
+        const double ref = integratedLufs (x, fs), base = integratedLufs ({ delayedBy (x.left, lat), delayedBy (x.right, lat) }, fs);
+        const auto held = learnedAtRest (x, fs);
+        double worst = 0.0, fixedWorst = 0.0;
+        for (double amount = 0.0; amount <= 100.0; amount += 10.0)
+        {
+            const double change = integratedLufs (run (x, fs, compSettings (amount, ref, true, held.spread)), fs) - base;
+            UNSCOPED_INFO ("Comp " << amount << " %: " << change << " dB");
+            worst = std::max (worst, std::abs (change));
+            if (amount == 70.0 || amount == 100.0)   // the even voice's spread instead, for comparison
+                fixedWorst = std::max (fixedWorst, std::abs (integratedLufs (run (x, fs, compSettings (amount, ref, true, 1.2)), fs) - base));
+        }
+        INFO ("recipe " << r.accent << "/" << r.phrase << "/" << r.decay << ": reference " << ref << " LUFS, spread " << held.spread
+                        << " dB; worst " << worst << " dB (held at an even voice's 1.2 dB instead: " << fixedWorst << " dB)");
+        CHECK (worst <= 1.0);
+        CHECK (fixedWorst > 1.0);   // the spread is what makes the difference
     }
-    INFO ("reference " << ref << " LUFS; worst " << worst << " dB");
-    CHECK (worst <= 2.0);
+}
+
+TEST_CASE ("Comp: the learned spread tells an even take from a dynamic one", "[comp][learn]")
+{
+    const double fs = 48000.0;
+    const auto even = learnedAtRest (both (voice (12.0, 1).mono), fs);
+    const auto dynamic = learnedAtRest (both (dynamicTake (8.0, 5.0, 15.0, 9)), fs);
+    INFO ("spread: even voice " << even.spread << " dB, dynamic take " << dynamic.spread << " dB (real dry takes measured 3.9..4.5 dB)");
+    CHECK (even.ready);
+    CHECK (dynamic.ready);
+    CHECK (even.spread < 2.0);
+    CHECK (dynamic.spread > 3.0);
+    CHECK (dynamic.spread < 6.0);
 }
 
 TEST_CASE ("Comp: a 41 Hz sine keeps its shape while compressed", "[comp][thd]")
@@ -433,27 +504,32 @@ TEST_CASE ("Comp: a 41 Hz sine keeps its shape while compressed", "[comp][thd]")
     CHECK (thd <= -40.0);
 }
 
-TEST_CASE ("Comp: learns the take's loudness, holds it, and re-learns from the held value", "[comp][learn]")
+TEST_CASE ("Comp: learns the take's loudness and spread, holds them, and re-learns from the held values", "[comp][learn]")
 {
+    // The spread is checked against what the same learner says about the
+    // whole take at rest (it has no outside ground truth; its use is checked
+    // by the loudness tests).
     const double fs = 48000.0;
-    struct Take { double vowelDb, seedLufs; };
-    for (const auto take : { Take { -18.0, -30.0 }, Take { -32.0, -18.0 } })
+    struct Take { double vowelDb, seedLufs, seedSpread; bool dynamic; };
+    for (const auto take : { Take { -18.0, -30.0, 7.0, false }, Take { -32.0, -18.0, 4.0, true } })
     {
         auto o = voiceOptions (16.0, 11);
         o.vowelRmsDb = take.vowelDb;
         o.plosives = false;   // a pop is a click by design; this is about the latch
-        const auto x = both (synth::make (o).mono);
-        const double truth = integratedLufs (x, fs);
+        auto mono = synth::make (o).mono;
+        if (take.dynamic) mono = scaled (dynamicTake (8.0, 5.0, 15.0, 11), fromDb (take.vowelDb + 18.0));
+        const auto x = both (mono);
+        const double truth = integratedLufs (x, fs), spreadTruth = learnedAtRest (x, fs).spread;
 
-        double readyAt = -1.0, latched = 0.0, relearnReport = 0.0;
-        bool relearnReady = true;
+        double readyAt = -1.0, latched = 0.0, latchedSpread = 0.0;
+        voc::LearnReport first, relearn;
+        bool firstSeen = false, relearnSeen = false;
         const auto relearnAt = (size_t) (14.0 * fs);
-        voc::LearnReport first;
-        bool firstSeen = false;
-        const auto y = run (x, fs, compSettings (70.0, take.seedLufs, false), 64, [&] (size_t at, voc::Settings& t) {
+        const auto y = run (x, fs, compSettings (70.0, take.seedLufs, false, take.seedSpread), 64, [&] (size_t at, voc::Settings& t) {
             if (readyAt > 0.0 && t[P::compLearned] < 0.5f && at < relearnAt)
             {
                 t[P::compRef] = (float) latched;   // the message thread latches the report
+                t[P::compSpread] = (float) latchedSpread;
                 t[P::compLearned] = 1.f;
             }
             if (at >= relearnAt) t[P::compLearned] = 0.f;   // Re-learn
@@ -464,22 +540,23 @@ TEST_CASE ("Comp: learns the take's loudness, holds it, and re-learns from the h
             {
                 readyAt = (double) at / fs;
                 latched = r.values[0];
+                latchedSpread = r.values[1];
             }
-            if (at > relearnAt && at <= relearnAt + 64)
-            {
-                relearnReport = r.values[0];
-                relearnReady = r.ready;
-            }
+            if (at > relearnAt && ! relearnSeen) { relearn = r; relearnSeen = true; }
         });
-        INFO ("vowels at " << take.vowelDb << " dB: integrated " << truth << " LUFS; seeded at " << take.seedLufs
-                           << ", first report " << first.values[0] << "; ready after " << readyAt << " s at " << latched
-                           << " LUFS; after Re-learn " << relearnReport);
-        CHECK (first.values[0] == (float) take.seedLufs);   // learning starts from the parameter
+        INFO ((take.dynamic ? "dynamic" : "even") << " take: integrated " << truth << " LUFS, spread " << spreadTruth
+                  << " dB; seeded at " << take.seedLufs << " / " << take.seedSpread << ", first report " << first.values[0] << " / "
+                  << first.values[1] << "; ready after " << readyAt << " s at " << latched << " / " << latchedSpread
+                  << "; after Re-learn " << relearn.values[0] << " / " << relearn.values[1]);
+        CHECK (first.values[0] == (float) take.seedLufs);   // learning starts from the parameters
+        CHECK (first.values[1] == (float) take.seedSpread);
         CHECK (readyAt > 0.0);
         CHECK (readyAt <= 10.5);
         CHECK (std::abs (latched - truth) <= 1.0);
-        CHECK (relearnReport == (float) latched);   // Re-learn starts over from the held value
-        CHECK (! relearnReady);
+        CHECK (std::abs (latchedSpread - spreadTruth) <= 0.5);
+        CHECK (relearn.values[0] == (float) latched);   // Re-learn starts over from the held values
+        CHECK (relearn.values[1] == (float) latchedSpread);
+        CHECK (! relearn.ready);
 
         const double dryP = worstClickP (x.left, fs), wetP = worstClickP (y.left, fs);
         INFO ("worst click P " << wetP << " (the dry voice: " << dryP << ")");
@@ -511,11 +588,11 @@ TEST_CASE ("Comp: a voice already at a constant level gets steady reduction (neg
     const double fs = 48000.0;
     const auto v = voice (12.0, 1);
     const auto x = both (v.mono);
-    const double ref = integratedLufs (x, fs);
+    const auto held = learnedAtRest (x, fs);
     const int block = 64;
     const auto lat = (size_t) latencyAt (fs);
     std::vector<float> meter;
-    const auto y = run (x, fs, compSettings (70.0, ref), block, [] (size_t, voc::Settings&) {},
+    const auto y = run (x, fs, compSettings (70.0, held.ref, true, held.spread), block, [] (size_t, voc::Settings&) {},
                         [&] (size_t, const voc::Comp& m) { meter.push_back (m.gainReductionDb()); });
     std::vector<double> gr, net;
     for (const auto& seg : v.of (synth::Seg::vowel))
@@ -584,7 +661,7 @@ TEST_CASE ("Comp: a copied instance carries on exactly where the original is", "
     CHECK (bitIdentical (slice (ra, half, ra.size()), slice (rb, half, rb.size())));
 }
 
-TEST_CASE ("Comp: knob sweeps, jumps, the reference and the power key never click", "[comp][click]")
+TEST_CASE ("Comp: knob sweeps, jumps, the reference, the spread and the power key never click", "[comp][click]")
 {
     const double fs = 48000.0;
     auto o = voiceOptions (7.5, 2);
@@ -612,6 +689,7 @@ TEST_CASE ("Comp: knob sweeps, jumps, the reference and the power key never clic
         else knob = t < 4.5 ? 85.0 : 40.0;                   // jumps, like a preset load
         s[P::comp] = (float) knob;
         s[P::compRef] = t < 4.0 ? -18.f : -12.f;             // the held reference moves
+        s[P::compSpread] = t < 4.2 ? 1.f : 7.f;              // and the held spread
         s[P::compOn] = (t > 5.0 && t < 5.6) || (t > 6.2 && t < 6.5) ? 0.f : 1.f;   // the power key
     }, [] (size_t, const voc::Comp&) {});
     const double p = worstClickP (y.left, fs);
