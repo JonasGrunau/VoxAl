@@ -114,44 +114,6 @@ namespace
 
     Signal slice (const Signal& s, size_t from, size_t to) { return Signal (s.begin() + (std::ptrdiff_t) from, s.begin() + (std::ptrdiff_t) to); }
 
-    // BS.1770-4 integrated loudness of [from, to) (to 0 = the end): 400 ms
-    // blocks every 100 ms, gated at -70 LUFS and 10 LU under the mean.
-    double integratedLufs (const Stereo& x, double fs, size_t from = 0, size_t to = 0)
-    {
-        to = to == 0 ? x.size() : to;
-        KWeighting kl (fs), kr (fs);
-        const auto hop = (size_t) std::lround (fs / 10.0);
-        std::vector<double> hops;
-        double acc = 0.0;
-        size_t in = 0;
-        for (size_t i = from; i < to; ++i)
-        {
-            const double a = kl.process (x.left[i]), b = kr.process (x.right[i]);
-            acc += a * a + b * b;
-            if (++in == hop)
-            {
-                hops.push_back (acc);
-                acc = 0.0;
-                in = 0;
-            }
-        }
-        std::vector<double> blocks;
-        for (size_t j = 3; j < hops.size(); ++j)
-            blocks.push_back ((hops[j] + hops[j - 1] + hops[j - 2] + hops[j - 3]) / (4.0 * (double) hop));
-        const auto lufs = [] (double z) { return -0.691 + 10.0 * std::log10 (std::max (z, 1e-30)); };
-        double sum = 0.0;
-        int n = 0;
-        for (double z : blocks)
-            if (lufs (z) > -70.0) { sum += z; ++n; }
-        if (n == 0) return -70.0;
-        const double gate = lufs (sum / n) - 10.0;
-        sum = 0.0;
-        n = 0;
-        for (double z : blocks)
-            if (lufs (z) > gate) { sum += z; ++n; }
-        return lufs (sum / n);
-    }
-
     synth::Options voiceOptions (double seconds, uint64_t seed = 1, double fs = 48000.0)
     {
         synth::Options o;

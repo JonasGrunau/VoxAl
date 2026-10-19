@@ -62,6 +62,7 @@ void Chain::prepare (double sampleRate, int maxBlockSize)
 {
     fs = sampleRate;
     maxBlock = std::max (1, maxBlockSize);
+    prepared = true;
 
     totalLatency = 0;
     for (auto& pair : inst)
@@ -131,7 +132,13 @@ void Chain::set (const Settings& s, const Order& order, bool newSound) noexcept
     bypassFade.setOn (s.on (P::bypass) || hostBypass);
     useSidechainKey = s.choice (P::duckKey) == 1;
 
-    if (phase == Phase::idle)
+    if (! prepared)
+    {
+        // Nothing has played yet (and nothing is allocated to copy): land on
+        // the order, prepare() keeps it.
+        current = target = want;
+    }
+    else if (phase == Phase::idle)
     {
         if (newSound || want != current) startTransition (want, newSound);
     }

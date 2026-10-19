@@ -15,7 +15,7 @@
 //
 // Each entry lists only what differs from the defaults; valuesOf() fills in
 // the rest. The plugin's PresetManager steps through these first, then the
-// user's own presets. M8 adds the ten factory sounds; for now there is Init.
+// user's own presets: Init, then the ten factory sounds.
 namespace voc
 {
 

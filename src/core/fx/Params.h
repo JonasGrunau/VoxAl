@@ -146,12 +146,12 @@ struct ParamInfo
     uint8_t flags;
     std::span<const std::string_view> choices;   // Unit::choice only
 
-    bool automatable() const noexcept { return (flags & pf::kAuto) != 0; }
-    bool inPresets() const noexcept { return (flags & pf::kPreset) != 0; }                    // a preset sets it
-    bool inSnapshots() const noexcept { return (flags & (pf::kPreset | pf::kLearned)) != 0; } // undo restores it (learned values belong to the take, not the preset)
-    bool learned() const noexcept { return (flags & pf::kLearned) != 0; }
-    bool discrete() const noexcept { return unit == Unit::choice || unit == Unit::toggle; }
-    bool logMapped() const noexcept { return (unit == Unit::hz || unit == Unit::seconds || unit == Unit::ms) && min > 0.f; }
+    constexpr bool automatable() const noexcept { return (flags & pf::kAuto) != 0; }
+    constexpr bool inPresets() const noexcept { return (flags & pf::kPreset) != 0; }                    // a preset sets it
+    constexpr bool inSnapshots() const noexcept { return (flags & (pf::kPreset | pf::kLearned)) != 0; } // undo restores it (learned values belong to the take, not the preset)
+    constexpr bool learned() const noexcept { return (flags & pf::kLearned) != 0; }
+    constexpr bool discrete() const noexcept { return unit == Unit::choice || unit == Unit::toggle; }
+    constexpr bool logMapped() const noexcept { return (unit == Unit::hz || unit == Unit::seconds || unit == Unit::ms) && min > 0.f; }
 };
 
 inline constexpr std::array<ParamInfo, kNumParams> kParams = { {

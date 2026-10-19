@@ -41,6 +41,7 @@
 #include "TestUtil.h"        // tests/TestUtil.h: testutil::psyLoop, the built-in 145 BPM loop
 #include "plugin/PluginEditor.h"
 #include "plugin/PluginProcessor.h"
+#include "fx/Presets.h"
 
 #include <cmath>
 #include <cstdio>
@@ -437,15 +438,20 @@ namespace
         check (r.wasOk() && folder.getChildFile ("Snap Renamed.vocanal").existsAsFile() && ! folder.getChildFile ("Snap Lead 2.vocanal").exists(),
                "rename moves the file");
         check (pm.factoryIndex() < 0 && pm.name() == "Snap Renamed", "the renamed preset is current");
-        check (! pm.loadFactory (5), "a factory index past the table is refused");
+        const auto factory = voc::factoryPresets();
+        check (! pm.loadFactory ((int) factory.size()), "a factory index past the table is refused");
         check (pm.loadFactory (0) && ! pm.save().wasOk(), "SAVE won't write over a factory preset");
 
-        // ◂ ▸: Init, then yours by name, round and round.
-        juce::StringArray seen;
-        for (int i = 0; i < 4; ++i) { pm.step (1); seen.add (pm.name()); }
-        check (seen.joinIntoString (",") == "Snap Lead,Snap Renamed,Init,Snap Lead", "stepping: " + seen.joinIntoString (", "));
+        // ◂ ▸: the factory sounds, then yours by name, round and round.
+        juce::StringArray seen, want;
+        for (size_t i = 1; i < factory.size(); ++i) want.add (juce::String (std::string (factory[i].name)));
+        want.addArray ({ "Snap Lead", "Snap Renamed", "Init", juce::String (std::string (factory[1].name)) });
+        for (int i = 0; i < want.size(); ++i) { pm.step (1); seen.add (pm.name()); }
+        check (seen == want, "stepping: " + seen.joinIntoString (", "));
+        while (pm.name() != "Snap Lead") pm.step (1);
         pm.step (-1);
-        check (pm.name() == "Init", "stepping back from the first user preset is Init");
+        const auto last = juce::String (std::string (factory.back().name));
+        check (pm.name() == last, "stepping back from the first user preset is " + last);
 
         // The session: the name and the edited flag come back.
         pm.loadFile (file);

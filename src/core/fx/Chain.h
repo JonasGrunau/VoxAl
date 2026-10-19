@@ -111,6 +111,7 @@ private:
 
     Settings live;
     bool hostBypass = false;
+    bool prepared = false;   // set() before the first prepare() only records the order
     bool useSidechainKey = false;
 
     dsp::Smoother mixSmooth, gainSmooth;

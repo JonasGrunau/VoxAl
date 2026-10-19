@@ -229,6 +229,25 @@ TEST_CASE ("Chain: prepare during a fade lands on the requested order", "[chain]
     CHECK (r.chain.order() == want);
 }
 
+TEST_CASE ("Chain: an order set before the first prepare is simply the order", "[chain][order]")
+{
+    // A preset or a session with its own order can arrive before the host
+    // prepares: there is nothing to copy or fade yet.
+    const double fs = 48000.0;
+    voc::Chain chain (stub::stubFactory());
+    const Order want = Order().moved (9, 10);
+    chain.set (voc::Settings(), want);
+    CHECK_FALSE (chain.transitioning());
+    CHECK (chain.order() == want);
+    chain.prepare (fs, 256);
+    CHECK (chain.order() == want);
+    auto x = stereoOf (sine (220.0, fs, 2048, 0.4));
+    chain.set (voc::Settings(), want);
+    chain.process (x.left.data(), x.right.data(), 256);
+    CHECK_FALSE (chain.transitioning());
+    CHECK (allFinite (x.left));
+}
+
 TEST_CASE ("Chain: a new sound crossfades in even in the same order", "[chain][order][click]")
 {
     const double fs = 48000.0;

@@ -206,7 +206,8 @@ if(VOCANAL_BUILD_TESTS)
         tests/TestRadio.cpp
         tests/TestDoubler.cpp
         tests/TestDelay.cpp
-        tests/TestReverb.cpp)
+        tests/TestReverb.cpp
+        tests/TestPresets.cpp)
     target_include_directories(vocanal_tests PRIVATE tests)
     target_link_libraries(vocanal_tests PRIVATE vocanal_core Catch2::Catch2WithMain)
 
