@@ -1,4 +1,4 @@
-# Vocanal
+# VocAnal
 
 A whole vocal chain in one plugin, built for psytrance vocals: clean-up, de-breath, compression, saturation, de-essing, air, a radio voice, a doubler, pitch and formant shifting, a ducked tempo delay and a reverb. Most modules are one knob: the plugin finds what to fix and the knob says how much. Drag the cards into any order; the default order is the one a mix engineer would patch.
 
