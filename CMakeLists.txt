@@ -42,6 +42,10 @@ add_library(vocanal_core STATIC
     src/core/fx/Comp.cpp
     src/core/fx/DeEss.cpp
     src/core/fx/Smooth.cpp
+    src/core/fx/Warmth.cpp
+    src/core/fx/Air.cpp
+    src/core/fx/Radio.cpp
+    src/core/fx/Doubler.cpp
     src/core/dsp/Fft.cpp
     src/core/dsp/Halfband.cpp
 )
@@ -189,7 +193,11 @@ if(VOCANAL_BUILD_TESTS)
         tests/TestBreath.cpp
         tests/TestComp.cpp
         tests/TestDeEss.cpp
-        tests/TestSmooth.cpp)
+        tests/TestSmooth.cpp
+        tests/TestWarmth.cpp
+        tests/TestAir.cpp
+        tests/TestRadio.cpp
+        tests/TestDoubler.cpp)
     target_include_directories(vocanal_tests PRIVATE tests)
     target_link_libraries(vocanal_tests PRIVATE vocanal_core Catch2::Catch2WithMain)
 

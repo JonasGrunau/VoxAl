@@ -5,3 +5,4 @@ dist/
 .cache/
 demo-kit.txt
 renders/
+.claude/worktrees/

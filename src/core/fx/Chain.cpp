@@ -1,12 +1,16 @@
 #include "Chain.h"
 
+#include "Air.h"
 #include "Breath.h"
 #include "Clean.h"
 #include "Comp.h"
 #include "DeEss.h"
+#include "Doubler.h"
 #include "Mapping.h"
+#include "Radio.h"
 #include "Shift.h"
 #include "Smooth.h"
+#include "Warmth.h"
 
 #include <algorithm>
 
@@ -27,7 +31,11 @@ Chain::Factory Chain::defaultFactory()
             case ModuleId::breath: return std::make_unique<Breath>();
             case ModuleId::shift: return std::make_unique<Shift>();
             case ModuleId::comp: return std::make_unique<Comp>();
+            case ModuleId::warmth: return std::make_unique<Warmth>();
             case ModuleId::deess: return std::make_unique<DeEss>();
+            case ModuleId::air: return std::make_unique<Air>();
+            case ModuleId::radio: return std::make_unique<Radio>();
+            case ModuleId::doubler: return std::make_unique<Doubler>();
             case ModuleId::smooth: return std::make_unique<Smooth>();
             default: return std::make_unique<Passthrough> (m);
         }
