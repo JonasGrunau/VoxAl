@@ -1,7 +1,7 @@
 # Vocanal
 
 ## Purpose
-A whole vocal chain in one psytrance-minded plugin (VST3 / AU, JUCE 8): smart one-knob modules (CLEAN, BREATH, COMP, WARMTH, DE-ESS, AIR, RADIO, DOUBLE), pitch/formant SHIFT, a ducked tempo DELAY and a REVERB, in an order the user drags. SMOOTH (de-harsh) is a planned follow-up: its slot comes after SHIFT, but there is no code until Jonas sends its details. The plan, with the measurable targets, is `~/.claude/plans/i-want-to-build-cosmic-nautilus.md` (milestones M1–M8).
+A whole vocal chain in one psytrance-minded plugin (VST3 / AU, JUCE 8): smart one-knob modules (CLEAN, BREATH, COMP, WARMTH, DE-ESS, AIR, RADIO, DOUBLE), pitch/formant SHIFT, a ducked tempo DELAY and a REVERB, in an order the user drags. SMOOTH (de-harsh, soothe2-like) is specified and comes in M3b; its slot is after SHIFT. The plan, with the measurable targets, is `~/.claude/plans/i-want-to-build-cosmic-nautilus.md` (milestones M1–M8).
 
 Buses: the voice is on the main input. The optional stereo sidechain "Duck Key" can duck DELAY and REVERB instead of the voice (Duck Key = Sidechain).
 
@@ -10,7 +10,7 @@ Invariants:
 - The latency is fixed per sample rate: the same in every order, at every quality, and at rest.
 - A reorder or a new sound never clicks.
 
-**Status:** M1 (foundation) is done. Every module is still a `Passthrough` placeholder. The chain, order, transitions, parameters, state, undo, sidechain, demo host and bench are in.
+**Status:** M1 (foundation) and M2 (SHIFT) are done. The other modules are still `Passthrough` placeholders. The chain, order, transitions, parameters, state, undo, sidechain, demo host, render tool and bench are in.
 
 ## Key Files
 | File | Description |
@@ -22,12 +22,17 @@ Invariants:
 | `src/core/fx/Chain.h/.cpp` | The engine: two instances per module, suffix-only reorder, sliced state copy, the 20 ms fade with B's inputs blended from A's, latency-aligned dry for Mix and bypass, Output, the duck key delayed per slot |
 | `src/core/dsp/RingBuffer.h` | Pow2 float ring with a 64-bit counter; `delay()` is an exact integer delay; sliced copy (`beginCopy`/`copySlice`/`finishCopy`) that is exact while the source keeps writing |
 | `src/core/dsp/Smoother.h` | Smoother / Fade (smoothstep) / SlewPole (kit) |
+| `src/core/dsp/Fft.h/.cpp`, `Halfband.h/.cpp` | From build-app: radix-2 FFT (double), polyphase IIR halfband (HIIR design) |
+| `src/core/dsp/Loudness.h` | BS.1770 K-weighting at any rate; `LoudnessMatch` (slow gain that holds a follower at a reference's K-weighted power) |
+| `src/core/fx/PitchShifter.h/.cpp` | SHIFT's engine at an internal rate <= 50 kHz: peak-locked PV (build-app's, reworked), louder-region-wins bins when shifting down, true-envelope formants (order fs / 2 F0), density compensation, a mono fast path, each frame spread over its hop in 5 stages (lag = 2 tails + a hop = 864 samples) |
+| `src/core/fx/Shift.h/.cpp` | The SHIFT module: dry ring, halfband resampling to the engine rate, equal-power Mix, engage fade (only once the engine is ready), loudness match. Rest = power off, Mix 0, or Pitch and Formant both 0 |
 | `src/plugin/PluginProcessor.cpp` | Host params built from the table (custom `NormalisableRange` = the core's laws; texts with "Off"); transactions (`Change`); the order as state; snapshot undo history; sidechain read; transport (holds the last host BPM); `processBlockBypassed` through the chain's delayed bypass; state with `order` and `stateVersion` |
 | `src/plugin/PluginEditor.cpp` | M1 placeholder sheet (Output, Mix). The real UI is M7 |
 | `tests/StubModules.h` | Stand-ins with real latency (`Lookahead`), real tails (`Echo`), a shaper, a stateful filter and a key probe; `stubFactory()`, `delayFactory()` |
 | `tests/SynthVoice.h` | Synthetic voice with ground truth: labelled segments (vowel, sibilant, fricative, plosive, breath) and an exact vowel envelope, optional boom, harsh ring and loud-ess faults at known Hz |
 | `tools/Demo.cpp` | Demo host (`./start.sh [vocal.wav [beat.wav]]`): the voice through the plugin, the beat around it and on the Duck Key bus. MIX (beat delayed by the latency), VOICE, BEAT. Scenarios: synthetic voice, synthetic voice with faults, and every `vocal =` in the local `demo-kit.txt` |
 | `tools/DemoKit.h` | Kit file parser: `tempo`, `pattern`, `kick`, `bass`, `vocal` (gitignored `demo-kit.txt`; never commit sample paths or audio) |
+| `tools/Render.cpp` | `vocanal_render in.wav out.wav [id=value ...] [order=...] [render=0|1]`: offline render through the chain, latency removed (before/after WAVs; mp3 first through `afconvert`/`ffmpeg`) |
 | `tools/Bench.cpp` | `vocanal_bench [seconds]`: average load and worst block per rate and block size, with and without reorders; exit 1 over budget (48 kHz, 32/64 blocks: average ≤ 25 %, worst ≤ 50 % of the period) |
 | `tools/Snapshot.cpp` | `vocanal_snapshot <dir> [state ...]`: renders the editor offscreen to PNGs; `bench` times the paints |
 
@@ -61,7 +66,8 @@ Invariants:
   - Mix 0, bypass and host bypass bit-exact (delayed);
   - duck key alignment, block-size invariance (1/37/64/4096), stress up to 192 kHz;
   - zero allocations;
-  - order parse and pack, parameter laws, the synth voice's ground truth.
+  - order parse and pack, parameter laws, the synth voice's ground truth;
+  - `[dsp]` the copied primitives; `[shift]` rest, interval, formants, loudness, latency honesty, block invariance, state copy, clicks.
 - After DSP changes, run `./build-core/vocanal_bench` (exit 0 = within budget).
 - After UI changes, run the snapshot loop and read the PNGs.
 - Before a release: `auval -v aufx Vcnl Jgru` and pluginval at strictness 5 on both formats. The AU warning "Disabling non-main buses failed" is harmless (the sidechain can't be switched off).

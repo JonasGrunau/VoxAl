@@ -1,45 +1,33 @@
 # Vocanal
 
-<Two to four plain sentences: what it is for and how you use it in a session.
-BuildApp: "A buildup effect for psytrance. Put it on the loop or the group you
-want to build, ride the knobs over the last bars, and pull them back for the
-drop." PhaseFucker: what it fixes, where to insert it, where the reference
-goes, which button to press.>
+A whole vocal chain in one plugin, built for psytrance vocals: clean-up, de-breath, compression, saturation, de-essing, air, a radio voice, a doubler, pitch and formant shifting, a ducked tempo delay and a reverb. Most modules are one knob: the plugin finds what to fix and the knob says how much. Drag the cards into any order; the default order is the one a mix engineer would patch.
 
-![Vocanal <in a typical state>](docs/screenshot.png)
+*Work in progress.* SHIFT works; the other modules pass the voice through untouched until their milestone lands, and the editor is a placeholder until the real UI arrives.
 
-<Optional: the signal flow as a small ASCII diagram, e.g. BuildApp's
-"in ─┬─ pitch ─ low cut ─ ... ─┐ wet / └── ... ─┤ dry / dry/wet ─ level ─ out".>
+```
+in ─┬─ CLEAN ─ BREATH ─ SHIFT ─ SMOOTH ─ COMP ─ WARMTH ─ DE-ESS ─ AIR ─ RADIO ─ DOUBLE ─ DELAY ─ REVERB ─┐ wet
+    └──────────────────────────── delayed by the latency ───────────────────────────────────────────────┤ dry
+                                                                                    mix ─ output ─ out
+```
 
-VST3 and Audio Unit for macOS (universal), VST3 for Windows. JUCE 8.
-<Instrument with a standalone (PsyBox): "Builds as **VST3**, **Audio Unit** and **Standalone** (macOS).">
+VST3 and Audio Unit for macOS (universal), VST3 for Windows. JUCE 8. An optional stereo sidechain, **Duck Key**, can duck the delay and the reverb from another track instead of the voice.
 
 ## The knobs
 
-<Effect: a table, one row per control. Instrument or a workflow plugin: "## Using it"
-as numbered steps instead (PhaseFucker: insert, route the sidechain per DAW
-(Logic / Ableton Live / Reaper / Cubase), play, press ALIGN, check).>
+| Module | Knob | What it does |
+|--------|------|--------------|
+| **SHIFT** | **Mix** | Blends the shifted voice with the dry one (equal power: a harmony at 50 % is as loud as either alone). 0 = off. |
+| | **Pitch** | −12 … +12 semitones. |
+| | **Formant** | −12 … +12 semitones, on its own. At 0 the vowels stay where they were whatever the pitch; Formant = Pitch is the classic sped-up-tape voice. |
+| **Global** | **Mix** | Dry/wet of the whole chain. |
+| | **Output** | −24 … +12 dB. |
+| | **Quality** / **Render Quality** | Normal or High. Bounces use Render Quality (High by default); the latency is the same in both. |
 
-| Knob | What it does |
-|------|--------------|
-| **<Name>** | <Range and what it does; what "off" / rest is.> |
-
-<What happens at rest (e.g. "With every knob at rest ... the signal passes bit
-for bit"). How every control is handled: drag (Shift for fine), wheel, typed
-values on double-click, reset on Alt/Cmd-click; hover help in the footer.>
-
-### The display
-
-- **A — <Section>**: <what is drawn and what each colour means>.
-- **B–F**: <...>.
+With every knob at its default the voice passes bit for bit, delayed by the plugin's latency (fixed per sample rate, the same at every quality and in every order). Moving a card, loading a preset or undoing never clicks: the chain crossfades over 20 ms, with every module's state copied first, so echoes and tails carry on.
 
 ## How it sounds the way it does
 
-<One bold-headed paragraph per DSP block with its source file, e.g.
-**Filters** (`src/core/fx/CutFilters.cpp`): the topology, why, and what the
-tests measure (numbers: "within 0.25 dB ... up to 17 kHz"). End with the CPU
-cost. Sidechain/analysis plugins: "## How the detection works" as numbered
-steps.>
+**SHIFT** (`src/core/fx/PitchShifter.cpp`, `Shift.cpp`): a peak-locked phase vocoder. Every spectral peak moves with the bins around it to exactly ratio × its true frequency, its phase turned to match, so partials stay pure; shifting down, each output bin keeps the louder of the regions crowding onto it instead of summing them, so an octave down doesn't beat. The formants come from a true spectral envelope (an iterated cepstrum whose order follows the voice's F0) and each moved region is scaled from the envelope at its old frequency to the envelope at its new one, read through the Formant knob. Above 50 kHz it runs at half or a quarter of the rate behind IIR halfbands, so it costs the same at every rate (about 6 % of one core) and sounds the same. Asymmetric low-delay windows keep it 18 ms late. The shifted voice is held at the dry voice's K-weighted loudness. Tests: the interval within 0.3 % up and down an octave, one clean sine (residual under −30 dB), the moved harmonics within 2 dB RMS of the envelope they should follow, loudness within 1.5 dB across Pitch and Formant, bit-exact rest, an honest latency.
 
 ## Building
 
@@ -67,28 +55,38 @@ cmake --build build-core
 ### UI snapshots
 
 `build/vocanal_snapshot_artefacts/Release/vocanal_snapshot <dir>`
-renders the editor to PNGs (<the states>) with the built-in loop playing
-through it, no DAW needed. `... <dir> bench` times the paints instead.
+renders the editor to PNGs with the built-in loop playing through it, no
+DAW needed. `... <dir> bench` times the paints instead.
+
+### Offline renders and the CPU bench
+
+```sh
+./build-core/vocanal_render in.wav out.wav shift_mix=100 shift_pitch=-12
+./build-core/vocanal_bench
+```
+
+`vocanal_render` runs a WAV through the chain with any parameter (ids as in
+`src/core/fx/Params.h`), at Render Quality, latency removed. `vocanal_bench`
+prints the load per sample rate and block size.
 
 ### Trying it without a DAW
 
 ```sh
-./start.sh               # the built-in kick + bass loop
-./start.sh track.wav     # your file, looped
+./start.sh                       # the synthetic voice over the built-in loop
+./start.sh vocal.wav [beat.wav]  # your vocal (and beat)
 ```
 
-`start.sh` builds and opens the demo host: the plugin in a window with the
-loop running through it and out of your speakers. **BYPASS** plays it
-untouched for comparison; space plays and stops. The plugin gets a matching
-looping transport, so anything that follows the DAW's tempo works as in a DAW.
+`start.sh` builds and opens the demo host: the voice through the plugin, the
+beat around it and on the Duck Key bus. **MIX**, **VOICE** and **BEAT** pick
+what you hear; space plays and stops. The plugin gets a matching looping
+transport, so the delay's tempo sync works as in a DAW.
 
 Real samples come from a kit file: copy `demo-kit.example.txt` to
-`demo-kit.txt` (ignored by git, sample packs aren't ours to share) and list a
-kick, the bass shots (root first, up to three more notes of the same patch),
-their tempo and the pattern; `start.sh` picks it up (or set
-`VOC_DEMO_KIT`). Without a kit the loop is synthesized
-(`tools/PsyLoop.h`). For a configure option on first run:
-`VOC_CMAKE_ARGS=-D... ./start.sh`.
+`demo-kit.txt` (ignored by git, sample packs aren't ours to share) and list
+dry vocals (`vocal = ...`) and, for the beat, a kick, the bass shots, their
+tempo and the pattern; `start.sh` picks it up (or set `VOC_DEMO_KIT`).
+Without a kit the voice and the loop are synthesized. For a configure option
+on first run: `VOC_CMAKE_ARGS=-D... ./start.sh`.
 
 ### Releases
 
@@ -121,12 +119,12 @@ installer is not signed, so SmartScreen asks once (More info > Run anyway).
 ## Project layout
 
 ```
-src/core/dsp       <primitives>
-src/core/<area>    <the product's DSP>
+src/core/dsp       primitives (rings, smoothers, FFT, halfbands, loudness)
+src/core/fx        the parameter table, the order, the chain, the modules
 src/plugin         JUCE processor and editor
-src/ui             theme, controls, <views>
-tests/             Catch2 tests for the core, test signals
-tools/             offscreen UI snapshot tool, demo host
+src/ui             theme, controls, views
+tests/             Catch2 tests for the core, test signals, the synthetic voice
+tools/             snapshot tool, demo host, offline render, CPU bench
 packaging/         macOS pkg and Windows installer scripts
 ```
 

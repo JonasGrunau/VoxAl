@@ -70,13 +70,17 @@ namespace
 
 TEST_CASE ("Chain: every knob at its default passes the loop bit for bit", "[chain][rest]")
 {
+    // The real modules: the output is the input delayed by their latency.
     const double fs = GENERATE (44100.0, 48000.0, 96000.0);
     const auto x = psyLoop (fs, 2.0);
     Runner r (voc::Chain::defaultFactory(), fs);
     const auto y = r.run (x);
-    CHECK (r.chain.latencySamples() == 0);
-    CHECK (x.left == y.left);
-    CHECK (x.right == y.right);
+    const auto lat = (size_t) r.chain.latencySamples();
+    INFO ("latency " << lat);
+    CHECK (lat > 0);
+    CHECK (delayedExactly (x.left, y.left, lat, 0, y.size()));
+    CHECK (delayedExactly (x.right, y.right, lat, 0, y.size()));
+    for (size_t i = 0; i < lat; ++i) REQUIRE ((y.left[i] == 0.f && y.right[i] == 0.f));
 }
 
 TEST_CASE ("Chain: a host block bigger than promised is processed in chunks", "[chain]")

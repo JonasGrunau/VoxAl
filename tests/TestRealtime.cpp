@@ -61,3 +61,45 @@ TEST_CASE ("Realtime: process never allocates, reorders and new sounds included"
     INFO ("allocations " << allocations.load());
     CHECK (allocations.load() == 0);
 }
+
+TEST_CASE ("Realtime: the real modules never allocate, busy and changing", "[rt]")
+{
+    // Every knob of the table drawn at random every few blocks (Listen and
+    // the quality included), reorders and new sounds on top.
+    using namespace testutil;
+    const double fs = 48000.0;
+    const auto x = psyLoop (fs, 3.0);
+    const auto key = noise (x.size(), 2, 0.3);
+
+    voc::Chain chain;
+    voc::Settings s;
+    voc::Order order;
+    chain.set (s, order);
+    chain.prepare (fs, 256);
+
+    Stereo y = x;
+    testutil::Rng rng (9);
+    const auto u01 = [&] { return 0.5 * (rng.uniform() + 1.0); };
+    const auto slot = [&] { return std::min (voc::kNumModules - 1, (int) (u01() * voc::kNumModules)); };
+    for (size_t start = 0, b = 0; start + 256 <= y.size(); start += 256, ++b)
+    {
+        bool fresh = false;
+        if (b % 8 == 0)
+            for (size_t p = 0; p < voc::kNumParams; ++p)
+            {
+                const auto& in = voc::kParams[p];
+                if ((voc::P) p == voc::P::bypass || (voc::P) p == voc::P::output) continue;
+                s.v[p] = voc::clampToRange ((voc::P) p, (float) (in.min + u01() * (in.max - in.min)));
+            }
+        if (u01() < 0.05) order = order.moved (slot(), slot());
+        if (u01() < 0.03) fresh = true;
+
+        counting = true;
+        chain.set (s, order, fresh);
+        chain.process (y.left.data() + start, y.right.data() + start, 256, key.data() + start, key.data() + start);
+        counting = false;
+    }
+    INFO ("allocations " << allocations.load());
+    CHECK (allocations.load() == 0);
+    CHECK (allFinite (y.left));
+}

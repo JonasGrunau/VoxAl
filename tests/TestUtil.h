@@ -594,6 +594,15 @@ inline double worstClickP (const Signal& x, double fs)
 
 // ---- Exact references (frequency domain) ----------------------------------------
 
+// x delayed by a whole number of samples, zero-padded: bit exact, for the
+// rest checks.
+inline Signal delayedBy (const Signal& x, size_t d)
+{
+    Signal y (x.size(), 0.f);
+    for (size_t i = d; i < x.size(); ++i) y[i] = x[i - d];
+    return y;
+}
+
 // x delayed by d samples (fractional allowed, positive = later), exactly,
 // with zero padding.
 inline Signal delayed (const Signal& x, double d)

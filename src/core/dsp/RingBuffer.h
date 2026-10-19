@@ -46,6 +46,11 @@ public:
     // The sample written `delay` pushes ago: 0 is the latest.
     float tap (size_t delay) const noexcept { return data[(size_t) ((written - 1 - delay) & mask)]; }
 
+    // The sample pushed as number `index` (0 = the first push ever), for
+    // readers that keep their own absolute clock. Valid for the last size()
+    // pushes; before the first push wraps round it reads the cleared zeros.
+    float at (int64_t index) const noexcept { return data[(size_t) ((uint64_t) index & mask)]; }
+
     // Pushes x and returns the sample from `delay` samples before it: a pure
     // integer delay (delay 0 returns x itself). Bit exact.
     float delay (float x, size_t delay) noexcept

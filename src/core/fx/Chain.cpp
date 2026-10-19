@@ -1,6 +1,7 @@
 #include "Chain.h"
 
 #include "Mapping.h"
+#include "Shift.h"
 
 #include <algorithm>
 
@@ -14,7 +15,13 @@ namespace voc
 
 Chain::Factory Chain::defaultFactory()
 {
-    return [] (ModuleId m) -> std::unique_ptr<Module> { return std::make_unique<Passthrough> (m); };
+    return [] (ModuleId m) -> std::unique_ptr<Module> {
+        switch (m)
+        {
+            case ModuleId::shift: return std::make_unique<Shift>();
+            default: return std::make_unique<Passthrough> (m);
+        }
+    };
 }
 
 Chain::Chain (Factory f) : factory (std::move (f))

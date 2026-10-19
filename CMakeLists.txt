@@ -35,6 +35,10 @@ add_library(vocanal_core STATIC
     src/core/fx/Params.cpp
     src/core/fx/Order.cpp
     src/core/fx/Chain.cpp
+    src/core/fx/PitchShifter.cpp
+    src/core/fx/Shift.cpp
+    src/core/dsp/Fft.cpp
+    src/core/dsp/Halfband.cpp
 )
 target_include_directories(vocanal_core PUBLIC src/core)
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
@@ -170,7 +174,9 @@ if(VOCANAL_BUILD_TESTS)
         tests/TestChain.cpp
         tests/TestOrder.cpp
         tests/TestRealtime.cpp
-        tests/TestSynthVoice.cpp)
+        tests/TestSynthVoice.cpp
+        tests/TestDsp.cpp
+        tests/TestShift.cpp)
     target_include_directories(vocanal_tests PRIVATE tests)
     target_link_libraries(vocanal_tests PRIVATE vocanal_core Catch2::Catch2WithMain)
 
@@ -178,6 +184,10 @@ if(VOCANAL_BUILD_TESTS)
     # vocanal_bench: CPU per rate and block size, worst block during reorders.
     add_executable(vocanal_bench tools/Bench.cpp)
     target_link_libraries(vocanal_bench PRIVATE vocanal_core)
+
+    # vocanal_render: a WAV through the chain with any settings (before/after files).
+    add_executable(vocanal_render tools/Render.cpp)
+    target_link_libraries(vocanal_render PRIVATE vocanal_core)
 
     include(CTest)
     include(Catch)
