@@ -67,6 +67,8 @@ VST3 and Audio Unit for macOS (universal), VST3 for Windows. JUCE 8. An optional
 
 Ten factory sounds, each levelled to the dry voice (within 1 LU on the test voice), so stepping through them compares sounds, not loudness: **Clean Lead**, **Psy Lead**, **Spoken Sample**, **Radio Voice**, **Telephone Break** (RADIO moved after DELAY, so the echoes come down the line too), **Wide Chant**, **Intimate**, **Dub Throw**, **Alien**, **Upfront Hook**, plus **Init**. ◂ ▸ step through them and then your own; **SAVE** and the **⋯** menu save, rename and delete yours (`~/Documents/Vocanal/Presets/*.vocanal`). A preset never carries what CLEAN, COMP and DE-ESS learned from your take, and **MIX LOCK** keeps the Mix where you set it.
 
+Knobs: drag up or down (Shift for fine steps) or use the wheel; double-click a knob to reset it to its default; double-click the value under it to type one.
+
 With every knob at its default the voice passes bit for bit, delayed by the plugin's latency (fixed per sample rate, the same at every quality and in every order). Moving a card, loading a preset or undoing never clicks: the chain crossfades over 20 ms, with every module's state copied first, so echoes and tails carry on.
 
 ## How it sounds the way it does

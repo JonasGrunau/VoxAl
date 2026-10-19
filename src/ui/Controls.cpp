@@ -134,6 +134,14 @@ juce::Rectangle<float> Dial::discArea() const
     return juce::Rectangle<float> (d, d).withCentre ({ b.getCentreX(), b.getY() + d * 0.5f });
 }
 
+juce::Rectangle<float> Dial::valueArea() const
+{
+    // The line paint() writes the value on, the whole width (a short "0 %"
+    // is still easy to hit), with a couple of pixels of slack around it.
+    const float top = discArea().getBottom() + 4.f + (compact ? 0.f : 13.f);
+    return { 0.f, top - 2.f, (float) getWidth(), 20.f };
+}
+
 void Dial::resized()
 {
     if (entry != nullptr)
@@ -193,7 +201,7 @@ void Dial::paint (juce::Graphics& g)
     pointer.lineTo (at (a, rd * 0.86f));
     g.strokePath (pointer, juce::PathStrokeType (stroke::pointer, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
 
-    // Name and value.
+    // Name and value (valueArea() is where the value line sits).
     auto txt = getLocalBounds().toFloat().withTop (area.getBottom() + 4.f);
     if (! compact)
         caption (g, name, txt.removeFromTop (13.f), juce::Justification::centredTop,
@@ -268,9 +276,24 @@ void Dial::mouseExit (const juce::MouseEvent&)
     if (onHover) onHover (this, false);
 }
 
-void Dial::mouseDoubleClick (const juce::MouseEvent&)
+void Dial::mouseDoubleClick (const juce::MouseEvent& e)
 {
     if (locked) return;
+    // The second click's press began a turn: close it before anything else.
+    if (dragging)
+    {
+        dragging = false;
+        attachment.endGesture();
+    }
+    if (valueArea().contains (e.position))
+        typeValue();
+    else
+        attachment.setValueAsCompleteGesture (param.convertFrom0to1 (param.getDefaultValue()));
+    repaint();
+}
+
+void Dial::typeValue()
+{
     entry = std::make_unique<juce::TextEditor>();
     entry->setFont (mono (size::value));
     entry->setJustification (juce::Justification::centred);

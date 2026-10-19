@@ -59,8 +59,9 @@ juce::PopupMenu::Options menuOptions (juce::Component& target);
 //   plain      inkSoft from the rest end to the value (dry/wet, a time)
 // Name under the disc, value under the name (the parameter's own text). A
 // compact dial (a chain card's) shows only the value: the card names it.
-// Drag up/down (220 px for the whole range, Shift = fine), wheel, double-click
-// to type a value, Alt/Cmd-click to reset to the default. A locked dial
+// Drag up/down (220 px for the whole range, Shift = fine), wheel; double-click
+// the knob (or Alt/Cmd-click it) to reset it to its default, double-click the
+// value under it to type one. A locked dial
 // shows its value but can't be turned (a learned value while Focus is Auto).
 class Dial : public juce::Component
 {
@@ -80,6 +81,8 @@ public:
     void setHelp (juce::String h) { help = std::move (h); }
     juce::String getHelp() const { return help; }
     bool isLocked() const noexcept { return locked; }
+    bool isTyping() const noexcept { return entry != nullptr; }
+    juce::Rectangle<float> valueArea() const;   // the value line under the disc (and the name): double-click types
     juce::RangedAudioParameter& parameter() const noexcept { return param; }
     std::function<void (Dial*, bool)> onHover;   // the editor shows the help line while hovering
     std::function<void()> onValueChange;
@@ -97,6 +100,7 @@ public:
 
 private:
     juce::Rectangle<float> discArea() const;
+    void typeValue();
     void nudge (float deltaNorm, bool asGesture);
     juce::String valueText() const { return param.getText (param.convertTo0to1 (value), 0); }
 

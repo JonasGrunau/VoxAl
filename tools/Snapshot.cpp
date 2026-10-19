@@ -13,6 +13,8 @@
 //   rest busy learning off edited hover nosc drag presets presetmore saveas preset
 //   panel_<module> for each of the twelve modules, cleanmanual
 // Self-tests (print PASS / FAIL lines, exit code = failures; no PNG):
+//   dialtest    double-clicks a dial: on the knob it goes back to its
+//               default (one undo step), on the value a text field opens
 //   dndtest     drags cards through the chain strip with synthetic mouse
 //               events: the right Order, exactly one undo step, undo/redo,
 //               a click selects, a drop on its own slot changes nothing,
@@ -304,6 +306,66 @@ namespace
         }
     };
 
+    Dial* findDial (juce::Component& c, const juce::String& paramId)
+    {
+        for (auto* child : c.getChildren())
+        {
+            if (auto* d = dynamic_cast<Dial*> (child))
+                if (auto* p = dynamic_cast<juce::AudioProcessorParameterWithID*> (&d->parameter()); p != nullptr && p->paramID == paramId)
+                    return d;
+            if (auto* found = findDial (*child, paramId)) return found;
+        }
+        return nullptr;
+    }
+
+    // A double click as the OS sends it: down, up, down (2 clicks), up, double-click.
+    void doubleClick (juce::Component& c, juce::Point<float> at)
+    {
+        c.mouseDown (eventFor (c, at, at, false, 1));
+        c.mouseUp (eventFor (c, at, at, false, 1));
+        c.mouseDown (eventFor (c, at, at, false, 2));
+        c.mouseUp (eventFor (c, at, at, false, 2));
+        c.mouseDoubleClick (eventFor (c, at, at, false, 2));
+    }
+
+    int dialTest (VocanalProcessor& proc, VocanalEditor& ed)
+    {
+        Checks check;
+        auto& dial = ed.chain().card (ModuleId::comp).hero();
+        const auto knob = juce::Point<float> ((float) dial.getWidth() * 0.5f, dial.valueArea().getY() * 0.5f);
+        const auto number = dial.valueArea().getCentre();
+
+        setPlain (proc, "comp", 60.f);
+        proc.pushHistory();
+        const int h0 = proc.historySize();
+        doubleClick (dial, knob);
+        pump (40);
+        check (proc.plain (P::comp) == voc::info (P::comp).def && ! dial.isTyping(), "a double click on the knob resets it, no text field");
+        check (proc.historySize() == h0 + 1, "the reset is one undo step");
+        proc.undo();
+        check (std::abs (proc.plain (P::comp) - 60.f) < 0.01f, "undo brings 60 % back");
+
+        doubleClick (dial, number);
+        pump (10);
+        check (dial.isTyping() && std::abs (proc.plain (P::comp) - 60.f) < 0.01f, "a double click on the number opens the text field, the value stays");
+        ed.grabKeyboardFocus();   // the field closes when it loses the focus
+        pump (10);
+
+        // A detail-panel dial (name and value under it) the same.
+        auto* found = findDial (ed, "smooth_sharp");
+        check (found != nullptr && found->getWidth() > 0, "SMOOTH's Sharpness dial is on screen");
+        if (found == nullptr || found->getWidth() == 0) return check.failures;
+        auto& sharp = *found;
+        setPlain (proc, "smooth_sharp", 80.f);
+        doubleClick (sharp, juce::Point<float> ((float) sharp.getWidth() * 0.5f, 20.f));
+        pump (40);
+        check (proc.plain (P::smoothSharp) == voc::info (P::smoothSharp).def && ! sharp.isTyping(), "a panel dial resets on its knob");
+        doubleClick (sharp, sharp.valueArea().getCentre());
+        pump (10);
+        check (sharp.isTyping(), "and types on its number");
+        return check.failures;
+    }
+
     int dndTest (VocanalProcessor& proc, VocanalEditor& ed)
     {
         Checks check;
@@ -513,7 +575,7 @@ int main (int argc, char** argv)
     outDir.createDirectory();
 
     const auto all = states();
-    const juce::StringArray tests { "dndtest", "presettest", "audit", "bench" };
+    const juce::StringArray tests { "dialtest", "dndtest", "presettest", "audit", "bench" };
     juce::StringArray wanted;
     for (int i = 2; i < argc; ++i) wanted.add (argv[i]);
     if (wanted.isEmpty())
@@ -548,6 +610,7 @@ int main (int argc, char** argv)
             testState.seconds = name == "bench" ? 4.0 : 1.0;
             testState.params = { { "clean", 55.f }, { "smooth", 60.f }, { "comp", 50.f }, { "deess", 70.f }, { "air", 60.f } };
             testState.faults = true;
+            if (name == "dialtest") testState.panel = ModuleId::smooth;
             state = &testState;
         }
         if (state == nullptr) { std::printf ("unknown state '%s'\n", name.toRawUTF8()); ++failures; continue; }
@@ -601,6 +664,7 @@ int main (int argc, char** argv)
         }
         pump (50);
 
+        if (name == "dialtest") { failures += dialTest (proc, *editor); continue; }
         if (name == "dndtest") { failures += dndTest (proc, *editor); continue; }
         if (name == "audit") { failures += audit (*editor); continue; }
         if (name == "bench")

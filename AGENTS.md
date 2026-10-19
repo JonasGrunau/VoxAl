@@ -51,7 +51,7 @@ Invariants:
 | `tools/DemoKit.h` | Kit file parser: `tempo`, `vocal = file`, `vocals = folder` (gitignored `demo-kit.txt`; never commit sample paths or audio) |
 | `tools/Render.cpp` | `vocanal_render in.wav out.wav [preset=name] [id=value ...] [order=...] [render=0|1] [bpm=140] [tail=0]`: offline render through the chain with a running transport, latency removed (before/after WAVs; mp3 first through `afconvert`/`ffmpeg`) |
 | `tools/Bench.cpp` | `vocanal_bench [seconds]`: average load and worst block per rate and block size, with and without reorders; exit 1 over budget (48 kHz, 32/64 blocks: average ≤ 25 %, worst ≤ 50 % of the period) |
-| `tools/Snapshot.cpp` | `vocanal_snapshot <dir> [state ...]`: renders the editor offscreen to PNGs (rest, busy, learning, off, edited, hover, nosc, drag, presets, presetmore, saveas, preset, cleanmanual, `panel_<module>`); self-tests `dndtest`, `presettest`, `audit`; `bench` times the paints. `SNAP_SCALE`, `SNAP_SECONDS`, `SNAP_PARAMS`, `SNAP_STOP`, `SNAP_HOVER` |
+| `tools/Snapshot.cpp` | `vocanal_snapshot <dir> [state ...]`: renders the editor offscreen to PNGs (rest, busy, learning, off, edited, hover, nosc, drag, presets, presetmore, saveas, preset, cleanmanual, `panel_<module>`); self-tests `dialtest`, `dndtest`, `presettest`, `audit`; `bench` times the paints. `SNAP_SCALE`, `SNAP_SECONDS`, `SNAP_PARAMS`, `SNAP_STOP`, `SNAP_HOVER` |
 
 ## For AI Agents
 
@@ -90,7 +90,7 @@ Invariants:
 - After DSP changes, run `./build-core/vocanal_bench` (exit 0 = within budget).
 - `[sweep]`: every hero knob automated 0-100-0 % in the full chain (over Psy Lead) without a strong click; each one-knob module holds the loudness within 1.5 LU at 25-100 % (RADIO 2.5 on the synthetic voice).
 - `[presets]`: every factory sound finite, under 0 dBFS, within 1 LU of the dry voice, without strong clicks; swaps between neighbours click free; Init bit-exact.
-- After UI changes, run the snapshot loop and read the PNGs, plus `dndtest presettest audit` (exit code = failures).
+- After UI changes, run the snapshot loop and read the PNGs, plus `dialtest dndtest presettest audit` (exit code = failures).
 - Before a release: `auval -v aufx Vcnl Jgru` and pluginval at strictness 5 on both formats. The AU warning "Disabling non-main buses failed" is harmless (the sidechain can't be switched off).
 
 ### Common Patterns
