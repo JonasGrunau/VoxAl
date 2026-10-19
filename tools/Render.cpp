@@ -1,15 +1,21 @@
 // vocanal_render: a WAV through the chain, offline, for before/after files.
 //   vocanal_render in.wav out.wav [preset="Psy Lead"] [id=value ...] [order=clean,breath,...]
-//                  [render=0|1] [bpm=140] [tail=0]
+//                  [render=0|1] [bpm=140] [tail=0] [learn=1]
 // A factory preset first (Presets.h), then ids and plain values as in the
 // parameter table (Params.h) over it, e.g.
 //   shift_mix=100 shift_pitch=-12 shift_formant=0
 // The output is 32-bit float with the chain's latency removed, so it lines
 // up with the input, plus `tail` seconds for the echoes and the reverb to
 // ring out. render=1 (the default) runs at Render Quality, as a bounce
-// would; the transport plays at `bpm` from the first sample. Core only, no
-// JUCE: mp3s go through afconvert first.
+// would; the transport plays at `bpm` from the first sample. learn=1 (the
+// default) first plays the file, looped, for up to 30 s the way the plugin
+// would while you listen, holds what CLEAN, COMP and DE-ESS learned as soon
+// as each is confident (the processor's latch), then renders with those
+// values from the first sample: what a bounce sounds like once the plugin
+// has heard the take. learn=0 renders with the values as given. Core only,
+// no JUCE: mp3s go through afconvert first.
 #include "fx/Chain.h"
+#include "fx/Learn.h"
 #include "fx/Presets.h"
 
 #include <cstdint>
@@ -116,6 +122,7 @@ int main (int argc, char** argv)
     transport.bpm = 140.0;
     transport.tempoKnown = transport.playing = true;
     double tail = 0.0;
+    bool learn = true;
     for (int i = 3; i < argc; ++i)
     {
         const std::string arg = argv[i];
@@ -140,11 +147,48 @@ int main (int argc, char** argv)
         else if (key == "render") s.render = value != "0";
         else if (key == "bpm") transport.bpm = std::stod (value);
         else if (key == "tail") tail = std::max (0.0, std::stod (value));
+        else if (key == "learn") learn = value != "0";
         else if (const int p = voc::indexOf (key); p >= 0) s.v[(size_t) p] = voc::clampToRange ((voc::P) p, std::stof (value));
         else
         {
             std::fprintf (stderr, "unknown parameter %s\n", key.c_str());
             return 2;
+        }
+    }
+
+    if (learn)
+    {
+        // The learning pass: what the processor's timer would latch.
+        voc::Chain listener;
+        listener.set (s, order);
+        listener.prepare (in.fs, 512);
+        std::vector<float> l (512), r (512);
+        const auto len = in.left.size();
+        const auto most = (size_t) (30.0 * in.fs);
+        for (size_t at = 0; at < most && len > 0; at += 512)
+        {
+            for (size_t i = 0; i < 512; ++i)
+            {
+                l[i] = in.left[(at + i) % len];
+                r[i] = in.right[(at + i) % len];
+            }
+            listener.set (s, order);
+            listener.process (l.data(), r.data(), 512, nullptr, nullptr, transport);
+            bool waiting = false;
+            for (const auto& spec : voc::kLearnSpecs)
+            {
+                if (s.on (spec.flag)) continue;
+                const auto report = listener.module (spec.module).learnReport();
+                if (! report.ready) { waiting = true; continue; }
+                for (int k = 0; k < spec.count; ++k)
+                    s[spec.params[(size_t) k]] = voc::clampToRange (spec.params[(size_t) k], report.values[(size_t) k]);
+                s[spec.flag] = 1.f;
+                std::printf ("learned %s after %.1f s:", std::string (voc::idOf (spec.module)).c_str(), (double) (at + 512) / in.fs);
+                for (int k = 0; k < spec.count; ++k)
+                    std::printf (" %s=%.1f", std::string (voc::info (spec.params[(size_t) k]).id).c_str(), s[spec.params[(size_t) k]]);
+                std::printf ("\n");
+            }
+            if (! waiting) break;
         }
     }
 
