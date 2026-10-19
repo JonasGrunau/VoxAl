@@ -6,3 +6,6 @@ dist/
 demo-kit.txt
 renders/
 .claude/worktrees/
+# Jonas's soothe2 black-box notes and probe: local only (clean room, see AGENTS.md)
+docs/soothe2-how-it-works.md
+tools/soothe-probe/
