@@ -2,7 +2,7 @@
 
 A whole vocal chain in one plugin, built for psytrance vocals: clean-up, de-breath, compression, saturation, de-essing, air, a radio voice, a doubler, pitch and formant shifting, a ducked tempo delay and a reverb. Most modules are one knob: the plugin finds what to fix and the knob says how much. Drag the cards into any order; the default order is the one a mix engineer would patch.
 
-*Work in progress.* SHIFT works; the other modules pass the voice through untouched until their milestone lands, and the editor is a placeholder until the real UI arrives.
+*Work in progress.* SHIFT and SMOOTH work; the other modules pass the voice through untouched until their milestone lands, and the editor is a placeholder until the real UI arrives.
 
 ```
 in ─┬─ CLEAN ─ BREATH ─ SHIFT ─ SMOOTH ─ COMP ─ WARMTH ─ DE-ESS ─ AIR ─ RADIO ─ DOUBLE ─ DELAY ─ REVERB ─┐ wet
@@ -19,6 +19,9 @@ VST3 and Audio Unit for macOS (universal), VST3 for Windows. JUCE 8. An optional
 | **SHIFT** | **Mix** | Blends the shifted voice with the dry one (equal power: a harmony at 50 % is as loud as either alone). 0 = off. |
 | | **Pitch** | −12 … +12 semitones. |
 | | **Formant** | −12 … +12 semitones, on its own. At 0 the vowels stay where they were whatever the pitch; Formant = Pitch is the classic sped-up-tape voice. |
+| **SMOOTH** | **Smooth** | Takes out harshness: resonant peaks and harsh bands that stick out of their neighbourhood, mostly between 2 and 8 kHz, as they happen. 0 = off. The loudness stays where it was. |
+| | **Sharpness** | How narrow the cuts are: from about 3/4 octave down to 1/6 octave up high (wider below 1 kHz). |
+| | **Listen** | Plays only what Smooth takes away. |
 | **Global** | **Mix** | Dry/wet of the whole chain. |
 | | **Output** | −24 … +12 dB. |
 | | **Quality** / **Render Quality** | Normal or High. Bounces use Render Quality (High by default); the latency is the same in both. |
@@ -28,6 +31,8 @@ With every knob at its default the voice passes bit for bit, delayed by the plug
 ## How it sounds the way it does
 
 **SHIFT** (`src/core/fx/PitchShifter.cpp`, `Shift.cpp`): a peak-locked phase vocoder. Every spectral peak moves with the bins around it to exactly ratio × its true frequency, its phase turned to match, so partials stay pure; shifting down, each output bin keeps the louder of the regions crowding onto it instead of summing them, so an octave down doesn't beat. The formants come from a true spectral envelope (an iterated cepstrum whose order follows the voice's F0) and each moved region is scaled from the envelope at its old frequency to the envelope at its new one, read through the Formant knob. Above 50 kHz it runs at half or a quarter of the rate behind IIR halfbands, so it costs the same at every rate (about 6 % of one core) and sounds the same. Asymmetric low-delay windows keep it 18 ms late. The shifted voice is held at the dry voice's K-weighted loudness. Tests: the interval within 0.3 % up and down an octave, one clean sine (residual under −30 dB), the moved harmonics within 2 dB RMS of the envelope they should follow, loudness within 1.5 dB across Pitch and Formant, bit-exact rest, an honest latency.
+
+**SMOOTH** (`src/core/fx/Smooth.cpp`): a lookahead spectral compressor driving a minimum-phase EQ. Every 5.3 ms a 2048-point analysis centred 17 ms ahead reads the voice's peak envelope on a 1/48-octave grid and compares each frequency with its neighbourhood; whatever stands more than 3.5 dB out is cut on a soft curve, most where harshness lives (2–5 kHz) and hardly in the body, with the highs reacting fastest. A resonance that appears is cut harder than one that stays. The cut curve becomes a minimum-phase filter (folded cepstrum: no pre-ringing) that runs on the delayed voice by overlap-add, so it moves without steps; a slow K-weighted makeup gives back the level. Latency 27 ms. Tests: the notch phase is minimum-phase within 0.004 rad; white and pink noise change under 0.05 dB, a broad bump under 0.4 dB; a ringing peak 20 dB over noise loses 9 dB at 70 %; a harsh ring in a voice loses 4.3 dB while the rest of the vowels move 0.5 dB RMS and the loudness 0.2 LU. About 1 % of a core at 48 kHz.
 
 ## Building
 

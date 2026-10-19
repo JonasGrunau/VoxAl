@@ -76,6 +76,10 @@ namespace choices
     X (shiftMix,      "shift_mix",      "Shift Mix",        Unit::percent,     0.f,   100.f,     0.f, pf::kAuto | pf::kPreset, none)      \
     X (shiftPitch,    "shift_pitch",    "Shift Pitch",      Unit::semitones, -12.f,    12.f,     0.f, pf::kAuto | pf::kPreset, none)      \
     X (shiftFormant,  "shift_formant",  "Shift Formant",    Unit::semitones, -12.f,    12.f,     0.f, pf::kAuto | pf::kPreset, none)      \
+    X (smoothOn,      "smooth_on",      "Smooth On",        Unit::toggle,      0.f,     1.f,     1.f, pf::kPreset, none)                  \
+    X (smooth,        "smooth",         "Smooth",           Unit::percent,     0.f,   100.f,     0.f, pf::kAuto | pf::kPreset, none)      \
+    X (smoothSharp,   "smooth_sharp",   "Smooth Sharpness", Unit::percent,     0.f,   100.f,    50.f, pf::kAuto | pf::kPreset, none)      \
+    X (smoothListen,  "smooth_listen",  "Smooth Listen",    Unit::toggle,      0.f,     1.f,     0.f, 0, none)                            \
     X (compOn,        "comp_on",        "Comp On",          Unit::toggle,      0.f,     1.f,     1.f, pf::kPreset, none)                  \
     X (comp,          "comp",           "Comp",             Unit::percent,     0.f,   100.f,     0.f, pf::kAuto | pf::kPreset, none)      \
     X (compRef,       "comp_ref",       "Comp Reference",   Unit::lufs,      -40.f,    -6.f,   -18.f, pf::kLearned, none)                 \

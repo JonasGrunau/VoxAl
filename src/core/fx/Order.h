@@ -28,6 +28,7 @@ enum class ModuleId : uint8_t
     doubler,
     delay,
     reverb,
+    smooth,
     count
 };
 
@@ -37,21 +38,21 @@ static_assert (kNumModules <= kMaxModules - 1, "0xF marks an empty slot");
 
 // The save format: never rename.
 inline constexpr std::array<std::string_view, kNumModules> kModuleIds = {
-    "clean", "breath", "shift", "comp", "warmth", "deess", "air", "radio", "double", "delay", "reverb"
+    "clean", "breath", "shift", "comp", "warmth", "deess", "air", "radio", "double", "delay", "reverb", "smooth"
 };
 
 // What the chain card says.
 inline constexpr std::array<std::string_view, kNumModules> kModuleNames = {
-    "CLEAN", "BREATH", "SHIFT", "COMP", "WARMTH", "DE-ESS", "AIR", "RADIO", "DOUBLE", "DELAY", "REVERB"
+    "CLEAN", "BREATH", "SHIFT", "COMP", "WARMTH", "DE-ESS", "AIR", "RADIO", "DOUBLE", "DELAY", "REVERB", "SMOOTH"
 };
 
 // Subtract first (so later detectors hear a clean voice), shift the clean dry
-// voice, compress, saturate, then de-ess what both lifted, add air above the
-// tamed "s", colour, double, and send both voices into the spaces. SMOOTH
-// joins after SHIFT when it lands.
+// voice, smooth its harshness before the compressor can lift it, compress,
+// saturate, then de-ess what both lifted, add air above the tamed "s",
+// colour, double, and send both voices into the spaces.
 inline constexpr std::array<ModuleId, kNumModules> kDefaultOrder = {
-    ModuleId::clean, ModuleId::breath, ModuleId::shift, ModuleId::comp, ModuleId::warmth, ModuleId::deess,
-    ModuleId::air, ModuleId::radio, ModuleId::doubler, ModuleId::delay, ModuleId::reverb
+    ModuleId::clean, ModuleId::breath, ModuleId::shift, ModuleId::smooth, ModuleId::comp, ModuleId::warmth,
+    ModuleId::deess, ModuleId::air, ModuleId::radio, ModuleId::doubler, ModuleId::delay, ModuleId::reverb
 };
 
 std::string_view idOf (ModuleId m) noexcept;

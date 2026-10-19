@@ -6,6 +6,7 @@
 #include "DeEss.h"
 #include "Mapping.h"
 #include "Shift.h"
+#include "Smooth.h"
 
 #include <algorithm>
 
@@ -27,6 +28,7 @@ Chain::Factory Chain::defaultFactory()
             case ModuleId::shift: return std::make_unique<Shift>();
             case ModuleId::comp: return std::make_unique<Comp>();
             case ModuleId::deess: return std::make_unique<DeEss>();
+            case ModuleId::smooth: return std::make_unique<Smooth>();
             default: return std::make_unique<Passthrough> (m);
         }
     };

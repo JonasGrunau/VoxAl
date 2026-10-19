@@ -15,7 +15,7 @@ TEST_CASE ("Order: the default order is every module once, as the plan sets it",
 {
     const Order o;
     CHECK (o.valid());
-    CHECK (o.toString() == "clean,breath,shift,comp,warmth,deess,air,radio,double,delay,reverb");
+    CHECK (o.toString() == "clean,breath,shift,smooth,comp,warmth,deess,air,radio,double,delay,reverb");
 }
 
 TEST_CASE ("Order: packing round-trips every move", "[order]")
@@ -33,8 +33,8 @@ TEST_CASE ("Order: packing round-trips every move", "[order]")
 
 TEST_CASE ("Order: moving a card puts it where it was dropped", "[order]")
 {
-    const Order o = Order().moved (0, 3);   // CLEAN behind COMP
-    CHECK (o.toString() == "breath,shift,comp,clean,warmth,deess,air,radio,double,delay,reverb");
+    const Order o = Order().moved (0, 3);   // CLEAN behind SMOOTH
+    CHECK (o.toString() == "breath,shift,smooth,clean,comp,warmth,deess,air,radio,double,delay,reverb");
     const Order back = o.moved (3, 0);
     CHECK (back == Order());
     CHECK (voc::firstDifference (Order(), o) == 0);
@@ -44,14 +44,17 @@ TEST_CASE ("Order: moving a card puts it where it was dropped", "[order]")
 
 TEST_CASE ("Order: loading is tolerant of unknown, doubled and missing ids", "[order][state]")
 {
-    // A future module ("smooth") and junk are skipped; duplicates count once.
-    CHECK (Order::parse ("reverb,smooth,clean,clean,,  delay ,xyz").toString()
-           == "reverb,clean,breath,shift,comp,warmth,deess,air,radio,double,delay");
+    // A future module ("tune") and junk are skipped; duplicates count once.
+    CHECK (Order::parse ("reverb,tune,clean,clean,,  delay ,xyz").toString()
+           == "reverb,clean,breath,shift,smooth,comp,warmth,deess,air,radio,double,delay");
+    // A session from before SMOOTH existed gets it right after SHIFT.
+    CHECK (Order::parse ("clean,breath,shift,comp,warmth,deess,air,radio,double,delay,reverb").toString()
+           == "clean,breath,shift,smooth,comp,warmth,deess,air,radio,double,delay,reverb");
     // Missing modules go in after their nearest default predecessor: reverb
     // after delay, breath after clean, shift after breath, and so on.
     const Order o = Order::parse ("delay,clean");
     CHECK (o.valid());
-    CHECK (o.toString() == "delay,reverb,clean,breath,shift,comp,warmth,deess,air,radio,double");
+    CHECK (o.toString() == "delay,reverb,clean,breath,shift,smooth,comp,warmth,deess,air,radio,double");
     CHECK (Order::parse ("").toString() == Order().toString());
     CHECK (Order::parse ("radio,air").slotOf (ModuleId::radio) < Order::parse ("radio,air").slotOf (ModuleId::air));
 }

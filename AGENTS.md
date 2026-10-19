@@ -1,7 +1,7 @@
 # Vocanal
 
 ## Purpose
-A whole vocal chain in one psytrance-minded plugin (VST3 / AU, JUCE 8): smart one-knob modules (CLEAN, BREATH, COMP, WARMTH, DE-ESS, AIR, RADIO, DOUBLE), pitch/formant SHIFT, a ducked tempo DELAY and a REVERB, in an order the user drags. SMOOTH (de-harsh, soothe2-like) is specified and comes in M3b; its slot is after SHIFT. The plan, with the measurable targets, is `~/.claude/plans/i-want-to-build-cosmic-nautilus.md` (milestones M1–M8).
+A whole vocal chain in one psytrance-minded plugin (VST3 / AU, JUCE 8): smart one-knob modules (CLEAN, BREATH, SMOOTH, COMP, WARMTH, DE-ESS, AIR, RADIO, DOUBLE), pitch/formant SHIFT, a ducked tempo DELAY and a REVERB, in an order the user drags. SMOOTH is the one-knob harshness remover (soothe2-like behaviour, from Jonas's black-box notes `docs/soothe2-how-it-works.md`, which stay out of git). The plan, with the measurable targets, is `~/.claude/plans/i-want-to-build-cosmic-nautilus.md` (milestones M1–M8).
 
 Buses: the voice is on the main input. The optional stereo sidechain "Duck Key" can duck DELAY and REVERB instead of the voice (Duck Key = Sidechain).
 
@@ -10,12 +10,12 @@ Invariants:
 - The latency is fixed per sample rate: the same in every order, at every quality, and at rest.
 - A reorder or a new sound never clicks.
 
-**Status:** M1 (foundation) and M2 (SHIFT) are done. The other modules are still `Passthrough` placeholders. The chain, order, transitions, parameters, state, undo, sidechain, demo host, render tool and bench are in.
+**Status:** M1 (foundation), M2 (SHIFT) and M3b (SMOOTH) are done; CLEAN, BREATH, COMP and DE-ESS (M3) are being built. The rest are still `Passthrough` placeholders. The chain, order, transitions, parameters, state, undo, sidechain, demo host, render tool and bench are in.
 
 ## Key Files
 | File | Description |
 |------|-------------|
-| `CMakeLists.txt` | Targets: `vocanal_core` (static lib, no JUCE), the `Vocanal` plugin, `vocanal_snapshot`, `vocanal_demo`, `vocanal_tests`, `vocanal_bench` (core only). Options `VOCANAL_BUILD_PLUGIN`, `VOCANAL_BUILD_TESTS`, `VOCANAL_COPY_PLUGIN` (off in CI). Cache var `VOCANAL_VERSION`. UI sources are listed once in `VOCANAL_UI_SOURCES` |
+| `CMakeLists.txt` | The core builds with `-fcx-limited-range` (complex products without the inf/NaN rescue: 6x faster FFTs). Targets: `vocanal_core` (static lib, no JUCE), the `Vocanal` plugin, `vocanal_snapshot`, `vocanal_demo`, `vocanal_tests`, `vocanal_bench` (core only). Options `VOCANAL_BUILD_PLUGIN`, `VOCANAL_BUILD_TESTS`, `VOCANAL_COPY_PLUGIN` (off in CI). Cache var `VOCANAL_VERSION`. UI sources are listed once in `VOCANAL_UI_SOURCES` |
 | `src/core/fx/Params.h/.cpp` | **The parameter table** (X-macro `VOC_PARAMS`): id (the save format), host name, unit, range, default, flags (`kAuto`, `kPreset`, `kLearned`), choice lists. `Settings` = every plain value plus `render`. Knob laws `toNormalised`/`fromNormalised` (log for Hz/ms/s), `offEnd` (where a knob says "Off"). The processor, presets, the undo history and the tests all read it |
 | `src/core/fx/Order.h/.cpp` | `ModuleId` (internal index, append only), `kModuleIds` (saved ids, never rename), `kDefaultOrder` with the reasoning, `Order` (pack into a uint64 with 4 bits per slot, `moved`, tolerant `parse`) |
 | `src/core/fx/Module.h` | The module contract (see below), `Transport`, `Block` (duck key + transport), `Passthrough` |
@@ -25,6 +25,8 @@ Invariants:
 | `src/core/dsp/Fft.h/.cpp`, `Halfband.h/.cpp` | From build-app: radix-2 FFT (double), polyphase IIR halfband (HIIR design) |
 | `src/core/dsp/Loudness.h` | BS.1770 K-weighting at any rate; `LoudnessMatch` (slow gain that holds a follower at a reference's K-weighted power) |
 | `src/core/fx/PitchShifter.h/.cpp` | SHIFT's engine at an internal rate <= 50 kHz: peak-locked PV (build-app's, reworked), louder-region-wins bins when shifting down, true-envelope formants (order fs / 2 F0), density compensation, a mono fast path, each frame spread over its hop in 5 stages (lag = 2 tails + a hop = 864 samples) |
+| `src/core/fx/Smooth.h/.cpp` | SMOOTH: centred 2048-point linked power analysis, a peak envelope (loudest bin within 120 Hz) on a 1/48-octave grid, narrow (Sharp) vs 1.5-octave dB-averaged neighbourhood with a slow adaptive reference, 3.5 dB threshold, presence weighting, HF-fast attack; minimum-phase filter from the folded cepstrum (4x grid at render) applied by overlap-add; boost-only loudness makeup; 6 stages per hop; latency N/2 + hop = 1280 at 48 kHz; `displayCutDb()` for the UI |
+| `src/core/fx/Learn.h` | Learn and hold: which params each learner owns (`kLearnSpecs`), `LearnReport`; the processor latches ready reports on a 10 Hz timer |
 | `src/core/fx/Shift.h/.cpp` | The SHIFT module: dry ring, halfband resampling to the engine rate, equal-power Mix, engage fade (only once the engine is ready), loudness match. Rest = power off, Mix 0, or Pitch and Formant both 0 |
 | `src/plugin/PluginProcessor.cpp` | Host params built from the table (custom `NormalisableRange` = the core's laws; texts with "Off"); transactions (`Change`); the order as state; snapshot undo history; sidechain read; transport (holds the last host BPM); `processBlockBypassed` through the chain's delayed bypass; state with `order` and `stateVersion` |
 | `src/plugin/PluginEditor.cpp` | M1 placeholder sheet (Output, Mix). The real UI is M7 |
@@ -67,7 +69,8 @@ Invariants:
   - duck key alignment, block-size invariance (1/37/64/4096), stress up to 192 kHz;
   - zero allocations;
   - order parse and pack, parameter laws, the synth voice's ground truth;
-  - `[dsp]` the copied primitives; `[shift]` rest, interval, formants, loudness, latency honesty, block invariance, state copy, clicks.
+  - `[dsp]` the copied primitives; `[shift]` rest, interval, formants, loudness, latency honesty, block invariance, state copy, clicks; `[smooth]` rest, min-phase phase (< 0.05 rad), noise and broad tone left alone, sine and ring cuts, Sharp widths, lookahead/attack order, Listen, copies, clicks.
+- CPU note: during a reorder fade both copies of the suffix run on the same stage schedule, so at 192 kHz with 32-sample blocks a block can overrun (~150 %); 48 kHz stays under 25 %.
 - After DSP changes, run `./build-core/vocanal_bench` (exit 0 = within budget).
 - After UI changes, run the snapshot loop and read the PNGs.
 - Before a release: `auval -v aufx Vcnl Jgru` and pluginval at strictness 5 on both formats. The AU warning "Disabling non-main buses failed" is harmless (the sidechain can't be switched off).

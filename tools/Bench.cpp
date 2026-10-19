@@ -20,7 +20,7 @@ namespace
     {
         using voc::P;
         voc::Settings s;
-        for (auto p : { P::clean, P::breath, P::comp, P::warmth, P::deess, P::air, P::radio, P::doubler,
+        for (auto p : { P::clean, P::breath, P::smooth, P::comp, P::warmth, P::deess, P::air, P::radio, P::doubler,
                         P::shiftMix, P::delayMix, P::reverbMix, P::delayDuck, P::reverbDuck })
             s[p] = 70.f;
         s[P::shiftPitch] = -12.f;

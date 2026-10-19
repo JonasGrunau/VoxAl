@@ -36,7 +36,7 @@ OffEnd offEnd (P p) noexcept
 {
     switch (p)
     {
-        case P::clean: case P::breath: case P::shiftMix: case P::comp: case P::warmth: case P::deess:
+        case P::clean: case P::breath: case P::shiftMix: case P::smooth: case P::comp: case P::warmth: case P::deess:
         case P::air: case P::radio: case P::doubler: case P::delayMix: case P::reverbMix:
         case P::delayDuck: case P::reverbDuck: case P::delayDiffuse: case P::delayLo: case P::reverbLo:
             return OffEnd::min;

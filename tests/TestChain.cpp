@@ -102,7 +102,7 @@ TEST_CASE ("Chain: the latency is the sum of the modules' and the same in every 
     const auto x = stereoOf (noise ((size_t) (1.5 * fs), 7, 0.3));
     Runner probe (stub::delayFactory(), fs);
     const auto lat = (size_t) probe.chain.latencySamples();
-    REQUIRE (lat == 17 * 66);
+    REQUIRE (lat == (size_t) (17 * voc::kNumModules * (voc::kNumModules + 1) / 2));   // 17 (m + 1) each
 
     // Every single move, made at 0.5 s. Outside the transition (copy, fade,
     // and the latency it takes the blended inputs to leave the delay lines)

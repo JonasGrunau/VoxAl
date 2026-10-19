@@ -50,9 +50,10 @@ private:
 
 // A slow loudness match: the gain that brings a follower signal to the
 // K-weighted power of a reference running alongside it (both mono), each
-// power a one-pole average over `seconds`. Below a floor (-70 dB) both count
-// as equal, so silence and the first moments ask for no correction; the gain
-// stays within +-maxDb.
+// power a one-pole average over `seconds`, the gain itself smoothed over the
+// same time again (so it doesn't move from syllable to syllable). Below a
+// floor (-70 dB) both count as equal, so silence and the first moments ask
+// for no correction; the gain stays within +-maxDb.
 class LoudnessMatch
 {
 public:
@@ -71,6 +72,7 @@ public:
         ref.reset();
         fol.reset();
         refPower = folPower = 0.0;
+        gain = 1.0;
     }
 
     double next (double reference, double follower) noexcept
@@ -78,13 +80,14 @@ public:
         const double r = ref.process (reference), f = fol.process (follower);
         refPower += coef * (r * r - refPower);
         folPower += coef * (f * f - folPower);
-        return std::clamp (std::sqrt ((refPower + kFloor) / (folPower + kFloor)), lo, hi);
+        gain += coef * (std::clamp (std::sqrt ((refPower + kFloor) / (folPower + kFloor)), lo, hi) - gain);
+        return gain;
     }
 
 private:
     static constexpr double kFloor = 1e-7;   // -70 dB of power
     KWeighting ref, fol;
-    double coef = 0.0, lo = 0.5, hi = 2.0, refPower = 0.0, folPower = 0.0;
+    double coef = 0.0, lo = 0.5, hi = 2.0, refPower = 0.0, folPower = 0.0, gain = 1.0;
 };
 
 } // namespace voc::dsp
