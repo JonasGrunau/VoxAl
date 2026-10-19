@@ -1,11 +1,16 @@
 // vocanal_render: a WAV through the chain, offline, for before/after files.
-//   vocanal_render in.wav out.wav [id=value ...] [order=clean,breath,...] [render=0|1]
-// Ids and plain values as in the parameter table (Params.h), e.g.
+//   vocanal_render in.wav out.wav [preset="Psy Lead"] [id=value ...] [order=clean,breath,...]
+//                  [render=0|1] [bpm=140] [tail=0]
+// A factory preset first (Presets.h), then ids and plain values as in the
+// parameter table (Params.h) over it, e.g.
 //   shift_mix=100 shift_pitch=-12 shift_formant=0
 // The output is 32-bit float with the chain's latency removed, so it lines
-// up with the input. render=1 (the default) runs at Render Quality, as a
-// bounce would. Core only, no JUCE: mp3s go through afconvert first.
+// up with the input, plus `tail` seconds for the echoes and the reverb to
+// ring out. render=1 (the default) runs at Render Quality, as a bounce
+// would; the transport plays at `bpm` from the first sample. Core only, no
+// JUCE: mp3s go through afconvert first.
 #include "fx/Chain.h"
+#include "fx/Presets.h"
 
 #include <cstdint>
 #include <cstdio>
@@ -95,7 +100,7 @@ int main (int argc, char** argv)
 {
     if (argc < 3)
     {
-        std::fprintf (stderr, "usage: vocanal_render in.wav out.wav [id=value ...] [order=...] [render=0|1]\n");
+        std::fprintf (stderr, "usage: vocanal_render in.wav out.wav [preset=name] [id=value ...] [order=...] [render=0|1] [bpm=140] [tail=0]\n");
         return 2;
     }
     Audio in;
@@ -107,14 +112,34 @@ int main (int argc, char** argv)
     voc::Settings s;
     s.render = true;
     voc::Order order;
+    voc::Transport transport;
+    transport.bpm = 140.0;
+    transport.tempoKnown = transport.playing = true;
+    double tail = 0.0;
     for (int i = 3; i < argc; ++i)
     {
         const std::string arg = argv[i];
         const auto eq = arg.find ('=');
         if (eq == std::string::npos) continue;
         const auto key = arg.substr (0, eq), value = arg.substr (eq + 1);
-        if (key == "order") order = voc::Order::parse (value);
+        if (key == "preset")
+        {
+            const int k = voc::factoryIndexOf (value);
+            if (k < 0)
+            {
+                std::fprintf (stderr, "no factory preset %s\n", value.c_str());
+                return 2;
+            }
+            const auto& p = voc::factoryPresets()[(size_t) k];
+            const auto v = voc::valuesOf (p);
+            for (size_t j = 0; j < voc::kNumParams; ++j)
+                if (voc::kParams[j].inPresets()) s.v[j] = v[j];
+            order = voc::orderOf (p);
+        }
+        else if (key == "order") order = voc::Order::parse (value);
         else if (key == "render") s.render = value != "0";
+        else if (key == "bpm") transport.bpm = std::stod (value);
+        else if (key == "tail") tail = std::max (0.0, std::stod (value));
         else if (const int p = voc::indexOf (key); p >= 0) s.v[(size_t) p] = voc::clampToRange ((voc::P) p, std::stof (value));
         else
         {
@@ -129,14 +154,15 @@ int main (int argc, char** argv)
     const auto lat = (size_t) chain.latencySamples();
     Audio out;
     out.fs = in.fs;
-    const size_t n = in.left.size() + lat;
+    const size_t n = in.left.size() + lat + (size_t) (tail * in.fs);
     std::vector<float> l (n, 0.f), r (n, 0.f);
     std::copy (in.left.begin(), in.left.end(), l.begin());
     std::copy (in.right.begin(), in.right.end(), r.begin());
     for (size_t at = 0; at < n; at += 512)
     {
         chain.set (s, order);
-        chain.process (l.data() + at, r.data() + at, (int) std::min<size_t> (512, n - at));
+        transport.ppq = (double) at / in.fs * transport.bpm / 60.0;
+        chain.process (l.data() + at, r.data() + at, (int) std::min<size_t> (512, n - at), nullptr, nullptr, transport);
     }
     out.left.assign (l.begin() + (std::ptrdiff_t) lat, l.end());
     out.right.assign (r.begin() + (std::ptrdiff_t) lat, r.end());

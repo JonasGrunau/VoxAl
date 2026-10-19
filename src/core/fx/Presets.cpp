@@ -14,7 +14,9 @@ namespace
     // Room 4, Ambience 6; reverbColour 70s 0, 80s 1.
     // Output: each sound levelled to the dry synthetic voice within 1 LU
     // ([presets] checks it), so stepping through them compares sounds, not
-    // loudness.
+    // loudness. RADIO's two sit between the synthetic voice and real speech
+    // (which keeps more of itself in the telephone band): -0.5 / -0.8 LU on
+    // the one, +0.4 / +1.0 on the other.
 
     // A finished modern lead: cleaned, evened, de-essed, a little air and a
     // short plate.
@@ -51,7 +53,7 @@ namespace
 
     // An old radio: the band narrowed, a speaker's honk and drive, a small room.
     constexpr PresetValue kRadioVoice[] = {
-        { P::output, 1.f },
+        { P::output, 0.5f },
         { P::clean, 50.f }, { P::comp, 60.f }, { P::warmth, 30.f }, { P::deess, 40.f },
         { P::radio, 70.f },
         { P::reverbMix, 25.f }, { P::reverbMode, 4.f }, { P::reverbDecay, 0.8f },
@@ -60,7 +62,7 @@ namespace
     // The full telephone, echoes and all: RADIO moved after DELAY, so the
     // repeats come down the line too.
     constexpr PresetValue kTelephoneBreak[] = {
-        { P::output, 2.f },
+        { P::output, 1.f },
         { P::clean, 40.f }, { P::breath, 40.f }, { P::comp, 70.f }, { P::warmth, 45.f }, { P::deess, 30.f },
         { P::radio, 100.f }, { P::radioTone, 40.f },
         { P::delayMix, 30.f }, { P::delayMode, 1.f }, { P::delayStyle, 0.f }, { P::delayDiv, 8.f },
