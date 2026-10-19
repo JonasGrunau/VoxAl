@@ -66,6 +66,9 @@ namespace choices
     X (cleanHpfHz,    "clean_hpf_hz",   "Clean HPF",        Unit::hz,         20.f,   300.f,    40.f, pf::kLearned, none)                 \
     X (cleanBoomHz,   "clean_boom_hz",  "Clean Boom",       Unit::hz,         80.f,   320.f,   160.f, pf::kLearned, none)                 \
     X (cleanMudHz,    "clean_mud_hz",   "Clean Mud",        Unit::hz,        200.f,   700.f,   350.f, pf::kLearned, none)                 \
+    X (cleanBoomDb,   "clean_boom_db",  "Clean Boom Cut",   Unit::db,          0.f,    12.f,     0.f, pf::kLearned, none)                 \
+    X (cleanMudDb,    "clean_mud_db",   "Clean Mud Cut",    Unit::db,          0.f,    12.f,     0.f, pf::kLearned, none)                 \
+    X (cleanLearned,  "clean_learned",  "Clean Learned",    Unit::toggle,      0.f,     1.f,     0.f, pf::kLearned, none)                 \
     X (breathOn,      "breath_on",      "Breath On",        Unit::toggle,      0.f,     1.f,     1.f, pf::kPreset, none)                  \
     X (breath,        "breath",         "Breath",           Unit::percent,     0.f,   100.f,     0.f, pf::kAuto | pf::kPreset, none)      \
     X (breathListen,  "breath_listen",  "Breath Listen",    Unit::toggle,      0.f,     1.f,     0.f, 0, none)                            \
@@ -76,12 +79,14 @@ namespace choices
     X (compOn,        "comp_on",        "Comp On",          Unit::toggle,      0.f,     1.f,     1.f, pf::kPreset, none)                  \
     X (comp,          "comp",           "Comp",             Unit::percent,     0.f,   100.f,     0.f, pf::kAuto | pf::kPreset, none)      \
     X (compRef,       "comp_ref",       "Comp Reference",   Unit::lufs,      -40.f,    -6.f,   -18.f, pf::kLearned, none)                 \
+    X (compLearned,   "comp_learned",   "Comp Learned",     Unit::toggle,      0.f,     1.f,     0.f, pf::kLearned, none)                 \
     X (warmthOn,      "warmth_on",      "Warmth On",        Unit::toggle,      0.f,     1.f,     1.f, pf::kPreset, none)                  \
     X (warmth,        "warmth",         "Warmth",           Unit::percent,     0.f,   100.f,     0.f, pf::kAuto | pf::kPreset, none)      \
     X (deessOn,       "deess_on",       "De-ess On",        Unit::toggle,      0.f,     1.f,     1.f, pf::kPreset, none)                  \
     X (deess,         "deess",          "De-ess",           Unit::percent,     0.f,   100.f,     0.f, pf::kAuto | pf::kPreset, none)      \
     X (deessFocus,    "deess_focus",    "De-ess Focus",     Unit::choice,      0.f,     1.f,     0.f, pf::kPreset, focus)                 \
     X (deessHz,       "deess_hz",       "De-ess Centre",    Unit::hz,       2000.f, 14000.f,  6500.f, pf::kLearned, none)                 \
+    X (deessLearned,  "deess_learned",  "De-ess Learned",   Unit::toggle,      0.f,     1.f,     0.f, pf::kLearned, none)                 \
     X (deessListen,   "deess_listen",   "De-ess Listen",    Unit::toggle,      0.f,     1.f,     0.f, 0, none)                            \
     X (airOn,         "air_on",         "Air On",           Unit::toggle,      0.f,     1.f,     1.f, pf::kPreset, none)                  \
     X (air,           "air",            "Air",              Unit::percent,     0.f,   100.f,     0.f, pf::kAuto | pf::kPreset, none)      \
@@ -137,7 +142,8 @@ struct ParamInfo
     std::span<const std::string_view> choices;   // Unit::choice only
 
     bool automatable() const noexcept { return (flags & pf::kAuto) != 0; }
-    bool inPresets() const noexcept { return (flags & (pf::kPreset | pf::kLearned)) != 0; }
+    bool inPresets() const noexcept { return (flags & pf::kPreset) != 0; }                    // a preset sets it
+    bool inSnapshots() const noexcept { return (flags & (pf::kPreset | pf::kLearned)) != 0; } // undo restores it (learned values belong to the take, not the preset)
     bool learned() const noexcept { return (flags & pf::kLearned) != 0; }
     bool discrete() const noexcept { return unit == Unit::choice || unit == Unit::toggle; }
     bool logMapped() const noexcept { return (unit == Unit::hz || unit == Unit::seconds || unit == Unit::ms) && min > 0.f; }

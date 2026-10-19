@@ -1,5 +1,9 @@
 #include "Chain.h"
 
+#include "Breath.h"
+#include "Clean.h"
+#include "Comp.h"
+#include "DeEss.h"
 #include "Mapping.h"
 #include "Shift.h"
 
@@ -18,7 +22,11 @@ Chain::Factory Chain::defaultFactory()
     return [] (ModuleId m) -> std::unique_ptr<Module> {
         switch (m)
         {
+            case ModuleId::clean: return std::make_unique<Clean>();
+            case ModuleId::breath: return std::make_unique<Breath>();
             case ModuleId::shift: return std::make_unique<Shift>();
+            case ModuleId::comp: return std::make_unique<Comp>();
+            case ModuleId::deess: return std::make_unique<DeEss>();
             default: return std::make_unique<Passthrough> (m);
         }
     };

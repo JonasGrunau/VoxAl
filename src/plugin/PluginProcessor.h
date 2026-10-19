@@ -2,6 +2,7 @@
 
 #include "analysis/Tap.h"
 #include "fx/Chain.h"
+#include "fx/Learn.h"
 #include "fx/Order.h"
 #include "fx/Params.h"
 
@@ -26,7 +27,8 @@
 //     per block, never locks, never allocates.
 class VocanalProcessor : public juce::AudioProcessor,
                          private juce::AudioProcessorParameter::Listener,
-                         private juce::AsyncUpdater
+                         private juce::AsyncUpdater,
+                         private juce::Timer
 {
 public:
     VocanalProcessor();
@@ -79,7 +81,15 @@ public:
         bool operator== (const Sound&) const = default;
     };
     Sound currentSound() const;
-    void applySound (const Sound& s, bool keepMix);
+    // A preset sets the parameters presets carry; an undo step also restores
+    // the learned values (withLearned).
+    void applySound (const Sound& s, bool keepMix, bool withLearned = false);
+
+    // ---- Learn and hold (message thread) ---------------------------------------
+    // Forget what a module learned: it learns again from what plays next
+    // (one undo step). The UI's Re-learn link.
+    void relearn (voc::ModuleId m);
+    bool learning (voc::ModuleId m) const noexcept;
 
     // ---- Undo / redo: snapshots of the whole sound -----------------------------
     // Pushed when a gesture ends, a card is dropped or a preset loads. Never
@@ -110,6 +120,17 @@ private:
     void parameterGestureChanged (int, bool starting) override;
     void handleAsyncUpdate() override { pushHistory(); }
 
+    // Learn and hold: the audio thread posts each learning module's report
+    // here after every block; the timer latches a ready one into its
+    // parameters and sets its learned flag, on the message thread.
+    struct LearnSlot
+    {
+        std::array<std::atomic<float>, voc::kMaxLearned> values {};
+        std::atomic<bool> ready { false };
+    };
+    std::array<LearnSlot, voc::kLearnSpecs.size()> learnSlots;
+    void timerCallback() override;
+    void postLearnReports() noexcept;   // audio thread
     // Transactions (psysynth's PatchChange): open before touching any
     // parameter, close when every value is written. Nests.
     struct Change

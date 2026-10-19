@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Learn.h"
 #include "Order.h"
 #include "Params.h"
 #include "dsp/RingBuffer.h"
@@ -39,7 +40,9 @@ struct Block
 //   - set() takes the knobs (plain values, Params.h); the module smooths per
 //     sample itself and snaps its smoothers while it rests.
 //   - Detectors analyse the module's own input, so they hear what the chain
-//     in front of them did, wherever the module sits.
+//     in front of them did, wherever the module sits. Slow estimates follow
+//     learn and hold (Learn.h): learnReport() is read on the audio thread
+//     after each block while the module's learned flag is 0.
 //   - State copy for a click-free reorder: big buffers are RingBuffers
 //     listed by rings() (the chain copies them in slices while the source
 //     keeps running); everything else (filters, followers, smoothers, small
@@ -64,6 +67,7 @@ public:
     virtual int latency() const noexcept { return 0; }
     virtual double tailSeconds() const noexcept { return 0.0; }
     virtual bool wantsKey() const noexcept { return false; }   // reads Block::key (the duckers)
+    virtual LearnReport learnReport() const noexcept { return {}; }
 
     // The rings to copy in slices, in a fixed order; another instance of the
     // same module lists rings of the same sizes in the same order.

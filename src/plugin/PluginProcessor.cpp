@@ -57,10 +57,12 @@ VocanalProcessor::VocanalProcessor()
     }
     lastSettings = settings();
     pushHistory();
+    startTimerHz (10);   // learn and hold: latches what the modules learned
 }
 
 VocanalProcessor::~VocanalProcessor()
 {
+    stopTimer();
     cancelPendingUpdate();
     for (auto* p : params) p->removeListener (this);
 }
@@ -133,13 +135,13 @@ VocanalProcessor::Sound VocanalProcessor::currentSound() const
     return s;
 }
 
-void VocanalProcessor::applySound (const Sound& s, bool keepMix)
+void VocanalProcessor::applySound (const Sound& s, bool keepMix, bool withLearned)
 {
     const Change change (*this);
     for (size_t k = 0; k < voc::kNumParams; ++k)
     {
         const auto p = (P) k;
-        if (! voc::info (p).inPresets()) continue;
+        if (! (withLearned ? voc::info (p).inSnapshots() : voc::info (p).inPresets())) continue;
         if (keepMix && p == P::mix) continue;
         auto& prm = param (p);
         const float target = prm.convertTo0to1 (voc::clampToRange (p, s.values[k]));
@@ -171,7 +173,7 @@ void VocanalProcessor::pushHistory()
 {
     auto now = currentSound();
     for (size_t k = 0; k < voc::kNumParams; ++k)
-        if (! voc::info ((P) k).inPresets()) now.values[k] = 0.f;   // quality, bypass, listen: not part of a sound
+        if (! voc::info ((P) k).inSnapshots()) now.values[k] = 0.f;   // quality, bypass, listen: not part of a sound
     if (historyIndex >= 0 && history[(size_t) historyIndex] == now) return;
     if (historyIndex + 1 < (int) history.size())
         history.erase (history.begin() + historyIndex + 1, history.end());
@@ -194,7 +196,74 @@ void VocanalProcessor::stepHistory (int delta)
 {
     cancelPendingUpdate();
     historyIndex += delta;
-    applySound (history[(size_t) historyIndex], false);
+    applySound (history[(size_t) historyIndex], false, true);
+}
+
+// ---- Learn and hold -------------------------------------------------------------
+
+namespace
+{
+    const voc::LearnSpec* specOf (voc::ModuleId m)
+    {
+        for (const auto& s : voc::kLearnSpecs)
+            if (s.module == m) return &s;
+        return nullptr;
+    }
+} // namespace
+
+bool VocanalProcessor::learning (voc::ModuleId m) const noexcept
+{
+    const auto* spec = specOf (m);
+    return spec != nullptr && plain (spec->flag) < 0.5f;
+}
+
+void VocanalProcessor::relearn (voc::ModuleId m)
+{
+    const auto* spec = specOf (m);
+    if (spec == nullptr || learning (m)) return;
+    learnSlots[(size_t) (spec - voc::kLearnSpecs.data())].ready.store (false, std::memory_order_release);
+    auto& flag = param (spec->flag);
+    flag.beginChangeGesture();
+    flag.setValueNotifyingHost (0.f);
+    flag.endChangeGesture();   // the undo step follows from the gesture
+}
+
+// Audio thread, after the chain ran: each learning module's report.
+void VocanalProcessor::postLearnReports() noexcept
+{
+    for (size_t i = 0; i < voc::kLearnSpecs.size(); ++i)
+    {
+        const auto& spec = voc::kLearnSpecs[i];
+        if (plain (spec.flag) >= 0.5f) continue;
+        const auto r = chain.module (spec.module).learnReport();
+        auto& slot = learnSlots[i];
+        if (r.ready)
+            for (size_t k = 0; k < (size_t) spec.count; ++k) slot.values[k].store (r.values[k], std::memory_order_relaxed);
+        slot.ready.store (r.ready, std::memory_order_release);
+    }
+}
+
+// Message thread: a learning module that is confident gets its values held.
+void VocanalProcessor::timerCallback()
+{
+    for (size_t i = 0; i < voc::kLearnSpecs.size(); ++i)
+    {
+        const auto& spec = voc::kLearnSpecs[i];
+        auto& slot = learnSlots[i];
+        if (plain (spec.flag) >= 0.5f || ! slot.ready.load (std::memory_order_acquire)) continue;
+        slot.ready.store (false, std::memory_order_relaxed);
+        for (size_t k = 0; k < (size_t) spec.count; ++k)
+        {
+            auto& prm = param (spec.params[k]);
+            prm.beginChangeGesture();
+            prm.setValueNotifyingHost (prm.convertTo0to1 (voc::clampToRange (spec.params[k], slot.values[k].load (std::memory_order_relaxed))));
+            prm.endChangeGesture();
+        }
+        auto& flag = param (spec.flag);
+        flag.beginChangeGesture();
+        flag.setValueNotifyingHost (1.f);
+        flag.endChangeGesture();   // one undo step (the gestures coalesce into one async push)
+    }
 }
 
 // ---- Audio --------------------------------------------------------------------
@@ -318,6 +387,7 @@ void VocanalProcessor::process (juce::AudioBuffer<float>& buffer, bool hostBypas
     chain.setHostBypass (hostBypass);
     chain.set (lastSettings, lastOrder, newSound);
     chain.process (left, right, n, keyL, keyR, readTransport());
+    postLearnReports();
     tap (outTap, outPeak);
 
     if (outs == 1)   // mono out: the sum
