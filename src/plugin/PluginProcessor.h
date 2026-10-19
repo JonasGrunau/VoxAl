@@ -1,15 +1,19 @@
 #pragma once
 
+#include "PresetManager.h"
+#include "Sound.h"
 #include "analysis/Tap.h"
 #include "fx/Chain.h"
 #include "fx/Learn.h"
 #include "fx/Order.h"
 #include "fx/Params.h"
+#include "fx/Smooth.h"
 
 #include <juce_audio_processors/juce_audio_processors.h>
 
 #include <array>
 #include <atomic>
+#include <cmath>
 #include <vector>
 
 // Vocanal: a whole vocal chain in one plugin. Smart one-knob modules (CLEAN,
@@ -74,13 +78,8 @@ public:
 
     // A whole sound at once (preset, undo step): plain values for every
     // parameter that presets carry, and the order. One transaction.
-    struct Sound
-    {
-        std::array<float, voc::kNumParams> values {};
-        voc::Order order;
-        bool operator== (const Sound&) const = default;
-    };
-    Sound currentSound() const;
+    using Sound = VocanalSound;
+    Sound currentSound() const;   // any thread
     // A preset sets the parameters presets carry; an undo step also restores
     // the learned values (withLearned).
     void applySound (const Sound& s, bool keepMix, bool withLearned = false);
@@ -99,15 +98,50 @@ public:
     bool canRedo() const { return historyIndex + 1 < (int) history.size(); }
     void undo();
     void redo();
+    int historySize() const noexcept { return (int) history.size(); }   // the snapshot tool's self-tests
+    int historyPosition() const noexcept { return historyIndex; }
+
+    // ---- Presets (message thread) -------------------------------------------------
+    PresetManager presets { *this };
 
     // ---- For the editor -------------------------------------------------------
     const voc::Tap& inputTap() const noexcept { return inTap; }
     const voc::Tap& outputTap() const noexcept { return outTap; }
     double getRate() const noexcept { return currentRate.load (std::memory_order_relaxed); }
     float takePeak (bool output) noexcept { return (output ? outPeak : inPeak).exchange (0.f, std::memory_order_relaxed); }
+    float takeKeyPeak() noexcept { return keyPeak.exchange (0.f, std::memory_order_relaxed); }   // the sidechain
     bool sidechainConnected() const noexcept { return sidechainActive.load (std::memory_order_relaxed); }
     bool hostTempoKnown() const noexcept { return tempoKnown.load (std::memory_order_relaxed); }
+    double tempoBpm() const noexcept { return bpmShown.load (std::memory_order_relaxed); }   // the host's, held while stopped; 120 before any
     int latency() const noexcept { return getLatencySamples(); }
+
+    // What the modules are doing right now, for the editor (section A's
+    // REMOVED / ADDED areas, the cards, the meters). The audio thread writes
+    // it about 60 times a second from the active instance of each module,
+    // after the chain ran; the editor reads it on its tick. Any thread.
+    struct Display
+    {
+        static constexpr int kCleanPoints = 96;   // CLEAN's HPF and bells as they stand, 20 Hz .. 20 kHz, log spaced
+        static double cleanHz (int i) noexcept { return 20.0 * std::pow (1000.0, (double) i / (kCleanPoints - 1)); }
+        static constexpr int kSmoothBands = voc::Smooth::kDisplayBands;   // 40 Hz .. 20 kHz, band centres
+        static double smoothHz (int b) noexcept { return 40.0 * std::pow (500.0, (b + 0.5) / kSmoothBands); }
+
+        std::array<std::atomic<float>, kCleanPoints> cleanDb {};
+        std::atomic<float> cleanDipDb { 0.f };                          // the plosive shelf at 160 Hz now (<= 0)
+        std::array<std::atomic<float>, kSmoothBands> smoothCutDb {};    // what SMOOTH takes per band (>= 0)
+        std::atomic<float> breathReductionDb { 0.f }, breathScore { 0.f };
+        std::atomic<float> compGrDb { 0.f }, compRefLufs { -18.f }, compSpreadDb { 4.f };
+        std::atomic<float> deessReductionDb { 0.f }, deessCentreHz { 6500.f }, deessSibilance { 0.f };
+        std::array<std::atomic<float>, 2> airLiftDb {};                 // mid air, high air: the lift at the top of each shelf
+        std::atomic<float> airGate { 0.f };
+        std::array<std::atomic<bool>, voc::kNumModules> engaged {};
+        std::atomic<uint32_t> serial { 0 };                             // moves with every publish
+    };
+    const Display& display() const noexcept { return disp; }
+
+    // Editor-only state that outlives the editor window (never in statics:
+    // plugin instances share those). Message thread.
+    voc::ModuleId uiSelected = voc::ModuleId::clean;
 
 private:
     static juce::AudioProcessorValueTreeState::ParameterLayout createLayout();
@@ -166,8 +200,14 @@ private:
     juce::AudioBuffer<float> scratch;   // [0] right channel for a mono input, [1] mono sum for the taps
     std::atomic<double> currentRate { 48000.0 };
     std::atomic<double> tailSeconds { 0.0 };
-    std::atomic<float> inPeak { 0.f }, outPeak { 0.f };
+    std::atomic<float> inPeak { 0.f }, outPeak { 0.f }, keyPeak { 0.f };
     std::atomic<bool> sidechainActive { false }, tempoKnown { false };
+    std::atomic<double> bpmShown { 120.0 };
+
+    Display disp;
+    std::array<double, Display::kCleanPoints> cleanHzTable {};
+    int sincePublish = 0, publishEvery = 800;
+    void publishDisplay (int numSamples) noexcept;   // audio thread
 
     // Message thread.
     std::vector<Sound> history;
