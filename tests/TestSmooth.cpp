@@ -148,7 +148,8 @@ TEST_CASE ("Smooth: the cut is a minimum-phase filter (no pre-ringing)", "[smoot
         auto s = smoothSettings (100.0);
         s[P::quality] = hq ? 1.f : 0.f;
         int lat = 0;
-        const auto y = aligned (run ({ x, x }, fs, s, 64, &lat).left, lat);
+        const auto yOut = run ({ x, x }, fs, s, 64, &lat);   // run () sets lat: read it after, not in the same call
+        const auto y = aligned (yOut.left, lat);
         const size_t n = 1 << 13, from = (size_t) (2.0 * fs);
         std::vector<cplx> sxy (n), sxx (n);
         for (size_t at = from; at + n <= y.size(); at += n / 2)
@@ -195,7 +196,8 @@ TEST_CASE ("Smooth: noise and broad tone are left alone", "[smooth][negative]")
     const double fs = 48000.0;
     const auto check = [fs] (const Signal& x, const char* what, double limit) {
         int lat = 0;
-        const auto y = aligned (run ({ x, x }, fs, smoothSettings (70.0), 64, &lat).left, lat);
+        const auto yOut = run ({ x, x }, fs, smoothSettings (70.0), 64, &lat);   // run () sets lat: read it after, not in the same call
+        const auto y = aligned (yOut.left, lat);
         double worst = 0.0;
         for (double f = 63.0; f < 16000.0; f *= 2.0)
             worst = std::max (worst, std::abs (bandDb (y, fs, f / 1.414, f * 1.414, (size_t) fs) - bandDb (x, fs, f / 1.414, f * 1.414, (size_t) fs)));

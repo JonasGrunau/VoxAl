@@ -218,7 +218,8 @@ TEST_CASE ("Radio: a 3 kHz sine at -6 dBFS through 100 % has no aliases", "[radi
     const double fs = GENERATE (44100.0, 48000.0);
     const auto x = sine (3000.0, fs, (size_t) (1.6 * fs), 0.5);
     int lat = 0;
-    const auto y = aligned (run ({ x, x }, fs, radioSettings (100.0), 64, &lat).left, lat);
+    const auto yOut = run ({ x, x }, fs, radioSettings (100.0), 64, &lat);   // run () sets lat: read it after, not in the same call
+    const auto y = aligned (yOut.left, lat);
     const Signal tail (y.begin() + (std::ptrdiff_t) (0.6 * fs), y.end());
     const double alias = worstAliasDb (tail, fs, 3000.0, 20000.0);
     INFO ("fs " << fs << ": worst non-harmonic " << alias << " dB re the fundamental, THD " << thdDb (tail, 3000.0, fs) << " dB");
@@ -228,7 +229,8 @@ TEST_CASE ("Radio: a 3 kHz sine at -6 dBFS through 100 % has no aliases", "[radi
     for (auto [hz, knob] : { std::pair { 5000.0, 60.0 }, { 7000.0, 40.0 }, { 9000.0, 30.0 }, { 4100.0, 100.0 } })
     {
         const auto xs = sine (hz, fs, (size_t) (1.6 * fs), 0.5);
-        const auto ys = aligned (run ({ xs, xs }, fs, radioSettings (knob), 64, &lat).left, lat);
+        const auto ysOut = run ({ xs, xs }, fs, radioSettings (knob), 64, &lat);   // run () sets lat: read it after, not in the same call
+        const auto ys = aligned (ysOut.left, lat);
         const double a = worstAliasDb (Signal (ys.begin() + (std::ptrdiff_t) (0.6 * fs), ys.end()), fs, hz, 20000.0);
         INFO ("fs " << fs << ", " << hz << " Hz at " << knob << " %: worst non-harmonic " << a << " dB");
         CHECK (a < -85.0);
@@ -242,7 +244,8 @@ TEST_CASE ("Radio: the saturation is gentle, mostly 2nd harmonic, and grows with
     const auto distortion = [fs] (double knob, double amp, double& h2, double& h3) {
         const auto x = sine (1000.0, fs, (size_t) (1.6 * fs), amp);
         int lat = 0;
-        const auto y = aligned (run ({ x, x }, fs, radioSettings (knob), 64, &lat).left, lat);
+        const auto yOut = run ({ x, x }, fs, radioSettings (knob), 64, &lat);   // run () sets lat: read it after, not in the same call
+        const auto y = aligned (yOut.left, lat);
         const Signal tail (y.begin() + (std::ptrdiff_t) (0.6 * fs), y.end());
         const double f = toneLevel (tail, 1000.0, fs);
         h2 = db (toneLevel (tail, 2000.0, fs) / f);
