@@ -124,14 +124,14 @@ double Hold::process (double x) noexcept
     return y;
 }
 
-// ---- comp::Loudness ------------------------------------------------------------------
+// ---- comp::Learner ------------------------------------------------------------------
 
-void Loudness::prepare (double fs) noexcept
+void Learner::prepare (double fs) noexcept
 {
     hopLength = std::max (1, (int) std::lround (0.1 * fs));
 }
 
-void Loudness::restart (double seedLufs) noexcept
+void Learner::restart (double seedLufs, double seedSpreadDb) noexcept
 {
     counts.fill (0);
     powers.fill (0.0);
@@ -140,9 +140,20 @@ void Loudness::restart (double seedLufs) noexcept
     totalCount = gated = hopsDone = 0;
     inHop = 0;
     seed = guess = integrated = seedLufs;
+    w = wl = wll = 0.0;
+    spreadSeed = spreadGuess = spreadMeasured = seedSpreadDb;
 }
 
-void Loudness::push (double power) noexcept
+void Learner::pushLevel (double meanPower) noexcept
+{
+    if (! (meanPower > 1e-10 && meanPower < 1e10)) return;   // under -100 dB it weighs nothing anyway
+    const double l = 10.0 * std::log10 (meanPower);
+    w += meanPower;
+    wl += meanPower * l;
+    wll += meanPower * l * l;
+}
+
+void Learner::push (double power) noexcept
 {
     sum += power;
     if (++inHop < hopLength) return;
@@ -153,7 +164,7 @@ void Loudness::push (double power) noexcept
         addBlock ((hops[0] + hops[1] + hops[2] + hops[3]) / (4.0 * hopLength));
 }
 
-void Loudness::addBlock (double z) noexcept
+void Learner::addBlock (double z) noexcept
 {
     const double lufs = -0.691 + 10.0 * std::log10 (std::max (z, 1e-30));
     if (! (lufs > -70.0 && lufs < 1000.0)) return;   // the absolute gate (and no NaN or inf in the histogram)
@@ -179,6 +190,14 @@ void Loudness::addBlock (double z) noexcept
     const double trust = std::min (1.0, (double) n / (double) kTrustBlocks);
     const auto& range = info (P::compRef);
     guess = std::clamp (seed + trust * (integrated - seed), (double) range.min, (double) range.max);
+
+    if (w > 0.0)
+    {
+        const double mean = wl / w;
+        spreadMeasured = std::sqrt (std::max (0.0, wll / w - mean * mean));
+    }
+    const auto& spreadRange = info (P::compSpread);
+    spreadGuess = std::clamp (spreadSeed + trust * (spreadMeasured - spreadSeed), (double) spreadRange.min, (double) spreadRange.max);
 }
 
 } // namespace comp
@@ -218,45 +237,61 @@ namespace
         return c;
     }
 
-    // The loudness the curve takes from the nominal voice: its 10 ms levels
-    // a Gaussian in dB (kSpreadDb wide, power mean on the body), each one
-    // reduced by the curve, the powers summed before and after.
-    double nominalLossDb (const Comp::Curve& c) noexcept
-    {
-        const double sigma = Comp::kSpreadDb, mu = -sigma * sigma * std::log (10.0) / 20.0;
-        double in = 0.0, out = 0.0;
-        for (int k = -60; k <= 60; ++k)
-        {
-            const double z = 0.1 * k, level = mu + sigma * z;
-            const double w = std::exp (-0.5 * z * z) * std::pow (10.0, 0.1 * level);
-            in += w;
-            out += w * std::pow (10.0, -0.1 * Comp::reductionAtDb (c, level));
-        }
-        return 10.0 * std::log10 (in / out);
-    }
+    // The makeup per knob position and spread, tabled (each entry is a sum
+    // over the spread) and read bilinearly: within 0.02 dB of the sum.
+    constexpr int kAmountSteps = 64, kSpreadSteps = 12;   // the spread by 0.5 dB over its range, 0..6
+    constexpr double kSpreadStepDb = 0.5;
+    using MakeupTable = std::array<std::array<double, kAmountSteps + 1>, kSpreadSteps + 1>;
+    static_assert (kSpreadSteps * kSpreadStepDb == (double) info (P::compSpread).max);
 
-    // The makeup per knob position, tabled (it is a sum over the spread);
-    // read with linear interpolation, ~1e-4 dB from the sum.
-    constexpr int kMakeupSteps = 256;
-
-    const std::array<double, kMakeupSteps + 1>& makeupTable() noexcept
+    const MakeupTable& makeupTable() noexcept
     {
         static const auto table = [] {
-            std::array<double, kMakeupSteps + 1> t {};
-            for (size_t i = 0; i < t.size(); ++i) t[i] = nominalLossDb (shape ((double) i / kMakeupSteps));
+            MakeupTable t {};
+            for (size_t j = 0; j < t.size(); ++j)
+                for (size_t i = 0; i < t[j].size(); ++i)
+                {
+                    const double a = (double) i / kAmountSteps;
+                    t[j][i] = Comp::lossDb (shape (a), Comp::effectiveSpreadDb (a, kSpreadStepDb * (double) j));
+                }
             return t;
         }();
         return table;
     }
 } // namespace
 
-Comp::Curve Comp::curve (double amount) noexcept
+double Comp::effectiveSpreadDb (double amount, double spreadDb) noexcept
+{
+    return (kSpreadGain + kSpreadGainPerAmount * std::clamp (amount, 0.0, 1.0)) * std::max (0.0, spreadDb);
+}
+
+double Comp::lossDb (const Curve& c, double spreadDb) noexcept
+{
+    // The levels a Gaussian in dB around mu, mu chosen so their power mean
+    // is the body; each one reduced by the curve, the powers summed before
+    // and after.
+    const double sigma = std::max (0.0, spreadDb), mu = -sigma * sigma * std::log (10.0) / 20.0;
+    double in = 0.0, out = 0.0;
+    for (int k = -60; k <= 60; ++k)
+    {
+        const double z = 0.1 * k, level = mu + sigma * z;
+        const double weight = std::exp (-0.5 * z * z) * std::pow (10.0, 0.1 * level);
+        in += weight;
+        out += weight * std::pow (10.0, -0.1 * reductionAtDb (c, level));
+    }
+    return 10.0 * std::log10 (in / out);
+}
+
+Comp::Curve Comp::curve (double amount, double spreadDb) noexcept
 {
     auto c = shape (amount);
     const auto& t = makeupTable();
-    const double at = std::clamp (amount, 0.0, 1.0) * kMakeupSteps;
-    const auto i = std::min ((size_t) at, (size_t) kMakeupSteps - 1);
-    c.makeup = t[i] + (at - (double) i) * (t[i + 1] - t[i]);
+    const double x = std::clamp (amount, 0.0, 1.0) * kAmountSteps;
+    const double y = std::clamp (spreadDb / kSpreadStepDb, 0.0, (double) kSpreadSteps);
+    const auto i = std::min ((size_t) x, (size_t) kAmountSteps - 1), j = std::min ((size_t) y, (size_t) kSpreadSteps - 1);
+    const double fx = x - (double) i, fy = y - (double) j;
+    const double lo = t[j][i] + fx * (t[j][i + 1] - t[j][i]), hi = t[j + 1][i] + fx * (t[j + 1][i + 1] - t[j + 1][i]);
+    c.makeup = lo + fy * (hi - lo);
     return c;
 }
 
@@ -301,10 +336,11 @@ void Comp::prepare (double sampleRate, int)
     }
     boxLength = std::max (1, (int) std::lround (kBoxSeconds * fs));
     box.prepare ((size_t) boxLength + 1);
+    levelHop = std::max (1, (int) std::lround (0.001 * fs));
     st.peakHold.prepare (fs);
     st.levelHold.prepare (fs);
     st.learner.prepare (fs);
-    st.learner.restart (st.refParam);
+    st.learner.restart (st.refParam, st.spreadParam);
 
     peakAttack = dsp::onePole (kPeakAttack, fs);
     peakRelease = dsp::onePole (kPeakRelease, fs);
@@ -315,6 +351,7 @@ void Comp::prepare (double sampleRate, int)
 
     st.amount.prepare (fs, kAmountSeconds);
     st.ref.prepare (fs, kRefSeconds);
+    st.spread.prepare (fs, kRefSeconds);
     st.engage.prepare (fs, kEngageSeconds);
     reset();
 }
@@ -333,23 +370,19 @@ void Comp::reset() noexcept
     dryR.clear();
     box.clear();
     st.boxSum = 0.0;
-    st.sinceResum = 0;
+    st.sinceResum = st.sinceLevel = 0;
     st.peakHold.reset();
     st.levelHold.reset();
     st.peak = st.level = 0.0;
 
-    st.amount.snap (st.knob);
-    st.ref.snap (refTarget());
-    st.shownAmount = st.amount.get();
-    st.now = curve (st.shownAmount);
-    st.body = bodyLevelDb (st.ref.get());
+    settle();
     // From silence: the cell holds the body's reduction, so the first
     // phrase starts compressed and the silence before it stays at unity.
     st.peakGr = st.levelGr = 0.0;
     st.cellGr = st.now.bodyReduction;
     st.engage.snap (st.want);
     meter.store (0.f);
-    refShown.store ((float) st.ref.get());
+    publish();
 }
 
 void Comp::set (const Settings& s) noexcept
@@ -358,20 +391,27 @@ void Comp::set (const Settings& s) noexcept
     st.want = s.on (P::compOn) && st.knob > 0.0;
     st.amount.setTarget (st.knob);   // the power fades the sound out as it is
     st.refParam = s[P::compRef];
+    st.spreadParam = s[P::compSpread];
     const bool held = s.on (P::compLearned);
-    if (st.held && ! held) st.learner.restart (st.refParam);   // Re-learn: start over from the held value
+    if (st.held && ! held) st.learner.restart (st.refParam, st.spreadParam);   // Re-learn: start over from the held values
     st.held = held;
 }
 
 double Comp::refTarget() const noexcept
 {
-    return st.held ? st.refParam : st.learner.estimate();
+    return st.held ? st.refParam : st.learner.reference();
+}
+
+double Comp::spreadTarget() const noexcept
+{
+    return st.held ? st.spreadParam : st.learner.spread();
 }
 
 LearnReport Comp::learnReport() const noexcept
 {
     LearnReport r;
-    r.values[0] = (float) st.learner.estimate();
+    r.values[0] = (float) st.learner.reference();
+    r.values[1] = (float) st.learner.spread();
     r.ready = st.learner.ready();
     return r;
 }
@@ -399,16 +439,35 @@ void Comp::detect (double x0, double x1) noexcept
     }
     s.level = s.levelHold.process (std::max (s.boxSum, 0.0) / boxLength);
     s.peak = s.peakHold.process (std::max (std::abs (c0), std::abs (c1)));
+    if (++s.sinceLevel >= levelHop)
+    {
+        s.sinceLevel = 0;
+        s.learner.pushLevel (s.level);
+    }
+}
+
+void Comp::settle() noexcept
+{
+    auto& s = st;
+    s.amount.snap (s.knob);
+    s.ref.snap (refTarget());
+    s.spread.snap (spreadTarget());
+    s.shownAmount = s.amount.get();
+    s.shownSpread = s.spread.get();
+    s.now = curve (s.shownAmount, s.shownSpread);
+    s.body = bodyLevelDb (s.ref.get());
 }
 
 void Comp::follow() noexcept
 {
     auto& s = st;
-    const double a = s.amount.next();
-    if (a != s.shownAmount)
+    s.spread.setTarget (spreadTarget());
+    const double a = s.amount.next(), sp = s.spread.next();
+    if (a != s.shownAmount || sp != s.shownSpread)
     {
-        s.now = curve (a);
+        s.now = curve (a, sp);
         s.shownAmount = a;
+        s.shownSpread = sp;
     }
     s.ref.setTarget (refTarget());
     s.body = bodyLevelDb (s.ref.next());
@@ -438,11 +497,7 @@ double Comp::levelTarget (const Readings& r) const noexcept
 void Comp::wake() noexcept
 {
     auto& s = st;
-    s.amount.snap (s.knob);
-    s.ref.snap (refTarget());
-    s.shownAmount = s.amount.get();
-    s.now = curve (s.shownAmount);
-    s.body = bodyLevelDb (s.ref.get());
+    settle();
     // Start where the detectors say, so the wet voice is right from its
     // first sample: in a pause the cell holds the body's reduction.
     const auto r = read();
@@ -450,6 +505,12 @@ void Comp::wake() noexcept
     const double t2 = levelTarget (r);
     s.levelGr = t2;
     s.cellGr = r.open * t2 + (1.0 - r.open) * std::max (t2, s.now.bodyReduction);
+}
+
+void Comp::publish() noexcept
+{
+    refShown.store ((float) st.ref.get(), std::memory_order_relaxed);
+    spreadShown.store ((float) st.spread.get(), std::memory_order_relaxed);
 }
 
 void Comp::process (float* left, float* right, int n, const Block&) noexcept
@@ -472,6 +533,7 @@ void Comp::process (float* left, float* right, int n, const Block&) noexcept
             // learner above keep listening.
             s.amount.snap (s.knob);
             s.ref.snap (refTarget());
+            s.spread.snap (spreadTarget());
             left[i] = d0;
             right[i] = d1;
             continue;
@@ -494,7 +556,7 @@ void Comp::process (float* left, float* right, int n, const Block&) noexcept
         most = std::max (most, e * gr);
     }
     meter.store ((float) most, std::memory_order_relaxed);
-    refShown.store ((float) s.ref.get(), std::memory_order_relaxed);
+    publish();
 }
 
 void Comp::copySmallState (const Module& from) noexcept
@@ -502,7 +564,7 @@ void Comp::copySmallState (const Module& from) noexcept
     const auto& o = static_cast<const Comp&> (from);
     st = o.st;
     meter.store (o.meter.load (std::memory_order_relaxed), std::memory_order_relaxed);
-    refShown.store (o.refShown.load (std::memory_order_relaxed), std::memory_order_relaxed);
+    publish();
 }
 
 } // namespace voc
