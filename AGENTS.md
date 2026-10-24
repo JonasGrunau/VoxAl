@@ -10,7 +10,7 @@ Invariants:
 - The latency is fixed per sample rate: the same in every order, at every quality, and at rest.
 - A reorder or a new sound never clicks.
 
-**Status:** M1–M8 done: all 12 modules, the editor, ten factory presets and user presets. Validated by measurement only (auval, pluginval 5 with GUI tests, the test suite, the bench); nobody has listened in a DAW yet. Released: v0.1.0, then v0.1.1, which names it VocAnal everywhere (bundles, host name, CMake target, classes, state and preset tags). Installers are unsigned (the signing secrets aren't set). The measured DELAY/REVERB targets are in memory (`vocanal-measurement-targets`). The chain, order, transitions, parameters, state, undo, sidechain, demo host, render tool and bench are in.
+**Status:** M1–M8 done: all 12 modules, the editor, ten factory presets and user presets. Validated by measurement only (auval, pluginval 5 with GUI tests, the test suite, the bench); nobody has listened in a DAW yet. Released: v0.1.0, then v0.1.1, which names it VocAnal everywhere (bundles, host name, CMake target, classes, state and preset tags), then v0.1.2, the same code with the macOS pkg and bundles signed and notarized (the four signing secrets are set; the Windows installer stays unsigned). The measured DELAY/REVERB targets are in memory (`vocanal-measurement-targets`). The chain, order, transitions, parameters, state, undo, sidechain, demo host, render tool and bench are in.
 
 ## Key Files
 | File | Description |
