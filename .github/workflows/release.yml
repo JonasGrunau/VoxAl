@@ -22,7 +22,7 @@ permissions:
 
 jobs:
   version:
-    runs-on: blacksmith-2vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.v.outputs.version }}
       numeric: ${{ steps.v.outputs.numeric }}
@@ -39,7 +39,7 @@ jobs:
 
   macos:
     needs: version
-    runs-on: blacksmith-6vcpu-macos-latest
+    runs-on: macos-latest
     env:
       VERSION: ${{ needs.version.outputs.version }}
       OUT: build/VocAnal_artefacts/Release
@@ -149,7 +149,7 @@ jobs:
 
   windows:
     needs: version
-    runs-on: blacksmith-4vcpu-windows-2025
+    runs-on: windows-latest
     env:
       VERSION: ${{ needs.version.outputs.version }}
     steps:
@@ -187,7 +187,7 @@ jobs:
   release:
     if: github.ref_type == 'tag'
     needs: [version, macos, windows]
-    runs-on: blacksmith-2vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v8
         with:
