@@ -1,13 +1,13 @@
 {
   "schema": 1,
-  "name": "VocAnal",
+  "name": "VoxAl",
   "category": "Vocal chain",
   "description": "A whole vocal chain in one plugin: clean-up, de-breath, compression, saturation, de-essing, air, a radio voice, a doubler, pitch and formant shifting, a ducked tempo delay and a reverb. Most modules are one knob: the plugin finds what to fix and the knob says how much.",
   "image": "docs/screenshot.png",
-  "bundles": ["VocAnal.vst3", "VocAnal.component"],
+  "bundles": ["VoxAl.vst3", "VoxAl.component"],
   "build": {
-    "cmake_args": ["-DVOCANAL_BUILD_TESTS=OFF", "-DVOCANAL_COPY_PLUGIN=OFF"],
-    "targets": ["VocAnal_VST3", "VocAnal_AU"],
-    "artefacts": "VocAnal_artefacts/Release"
+    "cmake_args": ["-DVOXAL_BUILD_TESTS=OFF", "-DVOXAL_COPY_PLUGIN=OFF"],
+    "targets": ["VoxAl_VST3", "VoxAl_AU"],
+    "artefacts": "VoxAl_artefacts/Release"
   }
 }

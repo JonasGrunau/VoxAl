@@ -9,7 +9,7 @@
 #include <memory>
 #include <vector>
 
-class VocAnalProcessor;
+class VoxAlProcessor;
 
 // Section A, VOICE. The live spectrum of the voice going in (a faint line,
 // read the latency earlier from the input tap so it lines up with what
@@ -32,7 +32,7 @@ class VocAnalProcessor;
 class VoiceSpectrum : public juce::Component
 {
 public:
-    explicit VoiceSpectrum (VocAnalProcessor& p);
+    explicit VoiceSpectrum (VoxAlProcessor& p);
     ~VoiceSpectrum() override;
 
     void refresh();   // once per editor tick
@@ -74,7 +74,7 @@ private:
     float ySpectrum (double db) const;
     float yResponse (double db) const;
 
-    VocAnalProcessor& proc;
+    VoxAlProcessor& proc;
 
     // Analysis (message thread).
     double fs = 0.0;

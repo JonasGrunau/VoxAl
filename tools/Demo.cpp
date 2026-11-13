@@ -1,11 +1,11 @@
-// VocAnal without a DAW: a dry vocal through the plugin, out of the
+// VoxAl without a DAW: a dry vocal through the plugin, out of the
 // speakers, with the plugin's editor below a small transport bar.
-//   vocanal_demo              pick a vocal in the bar
-//   vocanal_demo vocal.wav    your dry vocal, looped
+//   voxal_demo              pick a vocal in the bar
+//   voxal_demo vocal.wav    your dry vocal, looped
 //
 // The voice plays alone, looped on whole bars with at least 1.5 s of silence
 // after it, so echoes and the reverb ring out before it comes round again.
-// VOCANAL plays the plugin's output, DRY the voice as it went in, late by the
+// VOXAL plays the plugin's output, DRY the voice as it went in, late by the
 // plugin's latency (the way a DAW compensates it), so the two line up for an
 // A/B. Space plays and stops.
 // The vocals: every `vocal =` file and every audio file in a `vocals =`
@@ -131,12 +131,12 @@ namespace
 class DemoAudio : public juce::AudioIODeviceCallback
 {
 public:
-    enum Monitor { vocanal, dryVoice };
+    enum Monitor { voxal, dryVoice };
 
-    explicit DemoAudio (VocAnalProcessor& p) : proc (p) { proc.setPlayHead (&playHead); }
+    explicit DemoAudio (VoxAlProcessor& p) : proc (p) { proc.setPlayHead (&playHead); }
 
     std::function<void (double)> onRate;   // message thread: the device runs at a new rate
-    std::atomic<int> monitor { vocanal };
+    std::atomic<int> monitor { voxal };
     std::atomic<bool> playing { true };
 
     void setMaterial (std::shared_ptr<Material> m)
@@ -229,7 +229,7 @@ public:
     }
 
 private:
-    VocAnalProcessor& proc;
+    VoxAlProcessor& proc;
     TempoPlayHead playHead;
     juce::SpinLock lock;
     std::shared_ptr<Material> material;
@@ -294,7 +294,7 @@ public:
         if (file.existsAsFile()) current = kFiles;
         setLookAndFeel (&lnf);
         setOpaque (true);
-        editor.reset (dynamic_cast<VocAnalEditor*> (proc.createEditor()));
+        editor.reset (dynamic_cast<VoxAlEditor*> (proc.createEditor()));
         addAndMakeVisible (*editor);
 
         // Space plays and stops from anywhere, so the controls don't take the focus.
@@ -313,7 +313,7 @@ public:
         source.onChange = [this] { chooseSource (source.getSelectedId()); };
         addAndMakeVisible (source);
 
-        const char* names[] = { "VocAnal", "Dry" };
+        const char* names[] = { "VoxAl", "Dry" };
         for (int i = 0; i < 2; ++i)
         {
             auto& b = monitor[(size_t) i];
@@ -332,7 +332,7 @@ public:
         devices.addAudioCallback (&audio);
 
         setWantsKeyboardFocus (true);
-        setSize (VocAnalEditor::kWidth, VocAnalEditor::kHeight + kBar);
+        setSize (VoxAlEditor::kWidth, VoxAlEditor::kHeight + kBar);
     }
 
     ~DemoComponent() override
@@ -361,7 +361,7 @@ public:
         source.setBounds (98, 20, 270, 24);
         for (int i = 0; i < 2; ++i)
             monitor[(size_t) i].setBounds (382 + i * 74, 20, 70, 24);
-        editor->setBounds (0, kBar, VocAnalEditor::kWidth, VocAnalEditor::kHeight);
+        editor->setBounds (0, kBar, VoxAlEditor::kWidth, VoxAlEditor::kHeight);
     }
 
     bool keyPressed (const juce::KeyPress& k) override
@@ -405,18 +405,18 @@ private:
         }
         const auto flags = juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles;
         const juce::String types ("*.wav;*.aif;*.aiff;*.flac;*.mp3");
-        chooser = std::make_unique<juce::FileChooser> ("Dry vocal to play through VocAnal", file, types);
+        chooser = std::make_unique<juce::FileChooser> ("Dry vocal to play through VoxAl", file, types);
         chooser->launchAsync (flags, [this] (const juce::FileChooser& c) {
             if (c.getResult().existsAsFile()) { file = c.getResult(); current = kFiles; }
             reload();
         });
     }
 
-    VocAnalProcessor proc;
+    VoxAlProcessor proc;
     DemoAudio audio;
     juce::AudioDeviceManager devices;
     BarLookAndFeel lnf;
-    std::unique_ptr<VocAnalEditor> editor;
+    std::unique_ptr<VoxAlEditor> editor;
     juce::TextButton play;
     juce::ComboBox source;
     std::array<juce::TextButton, 2> monitor;
@@ -429,7 +429,7 @@ private:
 class DemoApp : public juce::JUCEApplication
 {
 public:
-    const juce::String getApplicationName() override { return "VocAnal Demo"; }
+    const juce::String getApplicationName() override { return "VoxAl Demo"; }
     const juce::String getApplicationVersion() override { return JucePlugin_VersionString; }
 
     void initialise (const juce::String& args) override
@@ -445,7 +445,7 @@ private:
     struct Window : juce::DocumentWindow
     {
         explicit Window (std::unique_ptr<DemoComponent> content)
-            : DocumentWindow ("VocAnal Demo", col::sheet, DocumentWindow::closeButton | DocumentWindow::minimiseButton)
+            : DocumentWindow ("VoxAl Demo", col::sheet, DocumentWindow::closeButton | DocumentWindow::minimiseButton)
         {
             setUsingNativeTitleBar (true);
             setContentOwned (content.release(), true);

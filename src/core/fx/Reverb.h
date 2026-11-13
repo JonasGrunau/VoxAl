@@ -17,7 +17,7 @@ namespace voc
 // -12 dB; the dry stays at unity, 0 = off); seven modes, three colours,
 // Decay (0.2-20 s: the measured mid-band RT60), Size, Pre-delay, Low and
 // High Cut, Mod, Duck. The behaviour is fitted to black-box measurements of
-// a well-known vintage-style reverb (memory: vocanal-measurement-targets).
+// a well-known vintage-style reverb (memory: voxal-measurement-targets).
 //
 //   in ─┬─────────────────────────────────────────────────────────────── dry (untouched)
 //       └─ pre-delay ─┬─ send ─ engine (playing) ─┐

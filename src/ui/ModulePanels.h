@@ -8,7 +8,7 @@
 #include <memory>
 #include <vector>
 
-class VocAnalProcessor;
+class VoxAlProcessor;
 
 // Section C: the selected module's detail row. One panel per module, all
 // built at once and shown one at a time, laid out left to right from blocks
@@ -26,7 +26,7 @@ class ModulePanel : public juce::Component
 public:
     using HelpFn = std::function<void (const juce::String&)>;
 
-    ModulePanel (VocAnalProcessor& p, voc::ModuleId m, HelpFn help);
+    ModulePanel (VoxAlProcessor& p, voc::ModuleId m, HelpFn help);
     ~ModulePanel() override;
 
     voc::ModuleId module() const noexcept { return id; }
@@ -73,7 +73,7 @@ private:
     void build();
     void say (const juce::String& line) { if (help) help (line); }
 
-    VocAnalProcessor& proc;
+    VoxAlProcessor& proc;
     const voc::ModuleId id;
     HelpFn help;
     std::vector<std::unique_ptr<juce::Component>> owned;

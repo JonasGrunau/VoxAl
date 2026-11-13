@@ -7,15 +7,15 @@ namespace
 {
     using voc::P;
 
-    const juce::Identifier kRoot ("VocAnalPreset"), kParam ("Param"), kId ("id"), kValue ("value"), kNameProp ("name"),
+    const juce::Identifier kRoot ("VoxAlPreset"), kParam ("Param"), kId ("id"), kValue ("value"), kNameProp ("name"),
         kOrderProp ("order"), kVersionProp ("version");
     // Session properties (the processor's state tree).
     const juce::Identifier kSessionName ("presetName"), kSessionEdited ("presetEdited"), kSessionFactory ("presetFactory"),
         kSessionFile ("presetFile");
 
-    VocAnalSound soundOf (const voc::FactoryPreset& f)
+    VoxAlSound soundOf (const voc::FactoryPreset& f)
     {
-        VocAnalSound s;
+        VoxAlSound s;
         s.values = voc::valuesOf (f);
         s.order = voc::orderOf (f);
         return s;
@@ -24,7 +24,7 @@ namespace
     juce::String nameOf (const voc::FactoryPreset& f) { return juce::String (f.name.data(), f.name.size()); }
 } // namespace
 
-PresetManager::PresetManager (VocAnalProcessor& p) : proc (p)
+PresetManager::PresetManager (VoxAlProcessor& p) : proc (p)
 {
     reference = soundOf (voc::factoryPresets()[0]);
 }
@@ -33,9 +33,9 @@ PresetManager::PresetManager (VocAnalProcessor& p) : proc (p)
 
 juce::File PresetManager::folder()
 {
-    if (const auto env = juce::SystemStats::getEnvironmentVariable ("VOCANAL_PRESET_FOLDER", {}); env.isNotEmpty())
+    if (const auto env = juce::SystemStats::getEnvironmentVariable ("VOXAL_PRESET_FOLDER", {}); env.isNotEmpty())
         return juce::File (env);
-    return juce::File::getSpecialLocation (juce::File::userDocumentsDirectory).getChildFile ("VocAnal").getChildFile ("Presets");
+    return juce::File::getSpecialLocation (juce::File::userDocumentsDirectory).getChildFile ("VoxAl").getChildFile ("Presets");
 }
 
 juce::File PresetManager::fileFor (const juce::String& name)
@@ -96,7 +96,7 @@ bool PresetManager::isUser() const
     return currentFactory < 0 && currentFile != juce::File() && currentFile.existsAsFile();
 }
 
-bool PresetManager::same (const VocAnalSound& a, const VocAnalSound& b) const
+bool PresetManager::same (const VoxAlSound& a, const VoxAlSound& b) const
 {
     if (a.order != b.order) return false;
     const bool mixLocked = proc.plain (P::mixLock) > 0.5f;
@@ -114,7 +114,7 @@ bool PresetManager::same (const VocAnalSound& a, const VocAnalSound& b) const
 
 bool PresetManager::isEdited() const
 {
-    std::optional<VocAnalSound> ref;
+    std::optional<VoxAlSound> ref;
     bool stored = false;
     {
         const juce::ScopedLock l (lock);
@@ -141,7 +141,7 @@ void PresetManager::restore (const Current& c)
     ++gen;
 }
 
-void PresetManager::setCurrent (const juce::String& n, int factory, const juce::File& f, std::optional<VocAnalSound> ref)
+void PresetManager::setCurrent (const juce::String& n, int factory, const juce::File& f, std::optional<VoxAlSound> ref)
 {
     const juce::ScopedLock l (lock);
     currentName = n;
@@ -154,7 +154,7 @@ void PresetManager::setCurrent (const juce::String& n, int factory, const juce::
 
 // ---- Loading ------------------------------------------------------------------------------
 
-bool PresetManager::apply (const VocAnalSound& s, const juce::String& name, int factory, const juce::File& f)
+bool PresetManager::apply (const VoxAlSound& s, const juce::String& name, int factory, const juce::File& f)
 {
     // One transaction (the audio thread crossfades into it) and one undo
     // step, which already carries the new name.
@@ -203,7 +203,7 @@ void PresetManager::step (int direction)
 
 // ---- Saving --------------------------------------------------------------------------------
 
-bool PresetManager::write (const juce::File& f, const VocAnalSound& s, const juce::String& n)
+bool PresetManager::write (const juce::File& f, const VoxAlSound& s, const juce::String& n)
 {
     juce::XmlElement root (kRoot);
     root.setAttribute (kVersionProp, kVersion);
@@ -221,11 +221,11 @@ bool PresetManager::write (const juce::File& f, const VocAnalSound& s, const juc
     return root.writeTo (f);
 }
 
-std::optional<VocAnalSound> PresetManager::read (const juce::File& f, juce::String* nameOut)
+std::optional<VoxAlSound> PresetManager::read (const juce::File& f, juce::String* nameOut)
 {
     const auto xml = juce::XmlDocument::parse (f);
     if (xml == nullptr || ! xml->hasTagName (kRoot)) return std::nullopt;
-    VocAnalSound s;
+    VoxAlSound s;
     for (size_t k = 0; k < voc::kNumParams; ++k) s.values[k] = voc::kParams[k].def;
     // Tolerant: unknown ids are skipped, missing ones keep their defaults.
     for (auto* e : xml->getChildWithTagNameIterator (kParam))
@@ -271,7 +271,7 @@ juce::Result PresetManager::rename (const juce::String& wanted)
     auto s = read (old);
     if (! s || ! write (f, *s, n)) return juce::Result::fail ("Couldn't write " + f.getFullPathName());
     old.deleteFile();
-    std::optional<VocAnalSound> ref;
+    std::optional<VoxAlSound> ref;
     {
         const juce::ScopedLock l (lock);
         ref = reference;
@@ -322,7 +322,7 @@ void PresetManager::loadFrom (const juce::ValueTree& state)
     // Not edited: the session's sound is the preset as it was loaded, whatever
     // its file says now. Edited: compare with the preset itself; if it's gone,
     // the session's word stands until the next load or save.
-    std::optional<VocAnalSound> ref;
+    std::optional<VoxAlSound> ref;
     if (! edited) ref = proc.currentSound();
     else if (factory >= 0) ref = soundOf (list[(size_t) factory]);
     else if (f.existsAsFile()) ref = read (f);

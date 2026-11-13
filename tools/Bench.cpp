@@ -1,6 +1,6 @@
-// vocanal_bench: what the chain costs, per sample rate and block size, with
+// voxal_bench: what the chain costs, per sample rate and block size, with
 // every module working, and its worst block while reorders happen.
-//   vocanal_bench [seconds]
+//   voxal_bench [seconds]
 // Prints the average load (share of one core) and the worst block (share of
 // the block's own duration). Budget (plan): at 48 kHz <= 25 % average and the
 // worst block <= 50 % of its period at 32 and 64 samples. Exit code 1 when a

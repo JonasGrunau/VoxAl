@@ -13,7 +13,7 @@
 
 // One sheet, laid out at kWidth x kHeight and scaled as a whole when the
 // window is resized (fixed aspect), in the house style:
-//   masthead  VOC/ANAL, the sub-line; the preset bar; UNDO / REDO; IN / OUT
+//   masthead  VOX/AL, the sub-line; the preset bar; UNDO / REDO; IN / OUT
 //   A VOICE   the spectrum: input (faint), output (filled), what the chain
 //             removes (hatched) and adds (washed), the learned Hz
 //   B CHAIN   twelve cards in the order the voice runs through them: drag
@@ -26,7 +26,7 @@
 // Nothing repaints on the timer unless what it shows changed: the controls
 // are opaque and repaint themselves, the sheet only redraws the footer and
 // the C tag row's status word.
-class VocAnalEditor : public juce::AudioProcessorEditor, private juce::Timer
+class VoxAlEditor : public juce::AudioProcessorEditor, private juce::Timer
 {
 public:
     // The sheet's rows, top to bottom, on the house grid: a rule, 12 to the
@@ -43,8 +43,8 @@ public:
     static constexpr float kFootRuleY = kRowY + layout::kDialH + 12.f;
     static constexpr int kHeight = (int) (kFootRuleY + theme::sheet::kFooterRuleUp);   // 720
 
-    explicit VocAnalEditor (VocAnalProcessor&);
-    ~VocAnalEditor() override;
+    explicit VoxAlEditor (VoxAlProcessor&);
+    ~VoxAlEditor() override;
 
     void resized() override;
     void paint (juce::Graphics&) override {}
@@ -67,13 +67,13 @@ public:
 private:
     struct Sheet : juce::Component
     {
-        explicit Sheet (VocAnalEditor& e) : editor (e)
+        explicit Sheet (VoxAlEditor& e) : editor (e)
         {
             setOpaque (true);
             setComponentID ("sheet");   // popup menus open inside it (menuOptions)
         }
         void paint (juce::Graphics&) override;
-        VocAnalEditor& editor;
+        VoxAlEditor& editor;
     };
 
     void timerCallback() override { tick(); }
@@ -82,7 +82,7 @@ private:
     juce::String engineText() const;
     void updateFooter();
 
-    VocAnalProcessor& proc;
+    VoxAlProcessor& proc;
     SheetLookAndFeel lnf;
     Sheet sheet { *this };
 

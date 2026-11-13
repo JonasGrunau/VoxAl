@@ -1,6 +1,6 @@
 #pragma once
 
-// VocAnal's own layout tokens (the product part; the house grid is in
+// VoxAl's own layout tokens (the product part; the house grid is in
 // Theme.h). Every size in the chain strip, the detail rows and the masthead
 // bar comes from here or from theme::sp, so a change moves everything that
 // shares it.

@@ -977,7 +977,7 @@ TEST_CASE ("Delay: mode, style, note, quality and knob changes while the echoes 
     report ("click changes: P %.2f (reference %.2f), echoes alone %.2f (voice %.2f), control %.2f\n", pY, pRef, pWet, pVoice, pControl);
 }
 
-// ---- Cost (hidden: ./vocanal_tests "[.delaybench]") --------------------------------
+// ---- Cost (hidden: ./voxal_tests "[.delaybench]") --------------------------------
 
 TEST_CASE ("Delay: what each mode costs at 48 kHz", "[.delaybench]")
 {

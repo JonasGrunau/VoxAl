@@ -22,7 +22,7 @@ namespace
     }
 } // namespace
 
-ModulePanel::ModulePanel (VocAnalProcessor& p, ModuleId m, HelpFn h) : proc (p), id (m), help (std::move (h))
+ModulePanel::ModulePanel (VoxAlProcessor& p, ModuleId m, HelpFn h) : proc (p), id (m), help (std::move (h))
 {
     setOpaque (true);
     build();

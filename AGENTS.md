@@ -1,4 +1,4 @@
-# VocAnal
+# VoxAl
 
 ## Purpose
 A whole vocal chain in one psytrance-minded plugin (VST3 / AU, JUCE 8): smart one-knob modules (CLEAN, BREATH, SMOOTH, COMP, WARMTH, DE-ESS, AIR, RADIO, DOUBLE), pitch/formant SHIFT, a ducked tempo DELAY and a REVERB, in an order the user drags. SMOOTH is the one-knob harshness remover (soothe2-like behaviour, from Jonas's black-box notes `docs/soothe2-how-it-works.md`, which stay out of git). The plan, with the measurable targets, is `~/.claude/plans/i-want-to-build-cosmic-nautilus.md` (milestones M1–M8).
@@ -10,12 +10,12 @@ Invariants:
 - The latency is fixed per sample rate: the same in every order, at every quality, and at rest.
 - A reorder or a new sound never clicks.
 
-**Status:** M1–M8 done: all 12 modules, the editor, ten factory presets and user presets. Validated by measurement only (auval, pluginval 5 with GUI tests, the test suite, the bench); nobody has listened in a DAW yet. Released: v0.1.0, then v0.1.1, which names it VocAnal everywhere (bundles, host name, CMake target, classes, state and preset tags), then v0.1.2, the same code with the macOS pkg and bundles signed and notarized (the four signing secrets are set; the Windows installer stays unsigned). The measured DELAY/REVERB targets are in memory (`vocanal-measurement-targets`). The chain, order, transitions, parameters, state, undo, sidechain, demo host, render tool and bench are in.
+**Status:** M1–M8 done: all 12 modules, the editor, ten factory presets and user presets. Validated by measurement only (auval, pluginval 5 with GUI tests, the test suite, the bench); nobody has listened in a DAW yet. Released: v0.1.0, then v0.1.1, which spelled the old name the same way everywhere, then v0.1.2, the same code with the macOS pkg and bundles signed and notarized (the four signing secrets are set; the Windows installer stays unsigned). Those three shipped under the old name; since then it is VoxAl in every spelling (`VoxAl`, `voxal`, `VOXAL`, the VOX/AL wordmark), with the plugin code `Voxl` (was `Vcnl`), the state tag `VoxAl`, the preset tag `VoxAlPreset` and `.voxal` presets in `~/Documents/VoxAl/Presets`. Sessions and presets from those releases no longer load. The measured DELAY/REVERB targets are in memory (`voxal-measurement-targets`). The chain, order, transitions, parameters, state, undo, sidechain, demo host, render tool and bench are in.
 
 ## Key Files
 | File | Description |
 |------|-------------|
-| `CMakeLists.txt` | The core builds with `-fcx-limited-range` (complex products without the inf/NaN rescue: 6x faster FFTs). Targets: `vocanal_core` (static lib, no JUCE), the `VocAnal` plugin, `vocanal_snapshot`, `vocanal_demo`, `vocanal_tests`, `vocanal_bench` (core only). Options `VOCANAL_BUILD_PLUGIN`, `VOCANAL_BUILD_TESTS`, `VOCANAL_COPY_PLUGIN` (off in CI). Cache var `VOCANAL_VERSION`. UI sources are listed once in `VOCANAL_UI_SOURCES` |
+| `CMakeLists.txt` | The core builds with `-fcx-limited-range` (complex products without the inf/NaN rescue: 6x faster FFTs). Targets: `voxal_core` (static lib, no JUCE), the `VoxAl` plugin, `voxal_snapshot`, `voxal_demo`, `voxal_tests`, `voxal_bench` (core only). Options `VOXAL_BUILD_PLUGIN`, `VOXAL_BUILD_TESTS`, `VOXAL_COPY_PLUGIN` (off in CI). Cache var `VOXAL_VERSION`. UI sources are listed once in `VOXAL_UI_SOURCES` |
 | `src/core/fx/Params.h/.cpp` | **The parameter table** (X-macro `VOC_PARAMS`): id (the save format), host name, unit, range, default, flags (`kAuto`, `kPreset`, `kLearned`), choice lists. `Settings` = every plain value plus `render`. Knob laws `toNormalised`/`fromNormalised` (log for Hz/ms/s), `offEnd` (where a knob says "Off"). The processor, presets, the undo history and the tests all read it |
 | `src/core/fx/Order.h/.cpp` | `ModuleId` (internal index, append only), `kModuleIds` (saved ids, never rename), `kDefaultOrder` with the reasoning, `Order` (pack into a uint64 with 4 bits per slot, `moved`, tolerant `parse`) |
 | `src/core/fx/Module.h` | The module contract (see below), `Transport`, `Block` (duck key + transport), `Passthrough` |
@@ -40,23 +40,23 @@ Invariants:
 | `src/core/fx/Presets.h/.cpp` | The factory table: Init and ten sounds, each only the preset-flagged values that differ from the defaults (checked at compile time), an optional order; Output levels each to the dry synthetic voice within 1 LU (`[presets]`) |
 | `src/core/fx/Shift.h/.cpp` | The SHIFT module: dry ring, halfband resampling to the engine rate, equal-power Mix, engage fade (only once the engine is ready), loudness match. Rest = power off, Mix 0, or Pitch and Formant both 0 |
 | `src/plugin/PluginProcessor.cpp` | Host params built from the table (custom `NormalisableRange` = the core's laws; texts with "Off"); transactions (`Change`); the order as state; snapshot undo history; sidechain read; transport (holds the last host BPM); `processBlockBypassed` through the chain's delayed bypass; state with `order` and `stateVersion` |
-| `src/plugin/PluginEditor.cpp` | The sheet (880 x 720, scaled whole): masthead (VOC/ANAL, preset bar, undo/redo, IN/OUT meters), A VOICE, B CHAIN, C the selected module, D OUTPUT, footer (hover help, or which modules act; rate, quality, latency, tempo source) |
+| `src/plugin/PluginEditor.cpp` | The sheet (880 x 720, scaled whole): masthead (VOX/AL, preset bar, undo/redo, IN/OUT meters), A VOICE, B CHAIN, C the selected module, D OUTPUT, footer (hover help, or which modules act; rate, quality, latency, tempo source) |
 | `src/ui/VoiceSpectrum.*` | A VOICE: input line (tap delayed by the latency) and filled output; REMOVED/ADDED from the modules' published gain curves (the processor's `Display` atomics, ~60 Hz), never from input − output; learned-Hz markers |
 | `src/ui/ChainStrip.*` | B CHAIN: twelve 62 px cards (power, name, hero dial, status row: LEARNING or what the module does now); drag to reorder with a gap where it lands (one undo step); click selects |
 | `src/ui/ModulePanels.*`, `Modules.h`, `Layout.h` | C: the twelve detail rows; per-module hero, power and help sentences; layout tokens |
-| `src/ui/PresetBar.*`, `src/plugin/PresetManager.*`, `src/plugin/Sound.h` | ◂ name ▸ SAVE ⋯; user presets as `.vocanal` XML (params, order, version) in `~/Documents/VocAnal/Presets` (`VOCANAL_PRESET_FOLDER` moves it); a load is one `applySound` transaction and one undo step; Delete moves to the Trash |
+| `src/ui/PresetBar.*`, `src/plugin/PresetManager.*`, `src/plugin/Sound.h` | ◂ name ▸ SAVE ⋯; user presets as `.voxal` XML (params, order, version) in `~/Documents/VoxAl/Presets` (`VOXAL_PRESET_FOLDER` moves it); a load is one `applySound` transaction and one undo step; Delete moves to the Trash |
 | `tests/StubModules.h` | Stand-ins with real latency (`Lookahead`), real tails (`Echo`), a shaper, a stateful filter and a key probe; `stubFactory()`, `delayFactory()` |
 | `tests/SynthVoice.h` | Synthetic voice with ground truth: labelled segments (vowel, sibilant, fricative, plosive, breath) and an exact vowel envelope, optional boom, harsh ring and loud-ess faults at known Hz |
-| `tools/Demo.cpp` | Demo host (`./start.sh [vocal.wav]`): a dry voice through the plugin, looped on whole bars with room for the tails, no beat. VOCANAL / DRY (the input delayed by the latency) for an A/B. Sources: every kit vocal, the synthetic voice, the synthetic voice with faults, your file. The Duck Key bus gets silence |
+| `tools/Demo.cpp` | Demo host (`./start.sh [vocal.wav]`): a dry voice through the plugin, looped on whole bars with room for the tails, no beat. VOXAL / DRY (the input delayed by the latency) for an A/B. Sources: every kit vocal, the synthetic voice, the synthetic voice with faults, your file. The Duck Key bus gets silence |
 | `tools/DemoKit.h` | Kit file parser: `tempo`, `vocal = file`, `vocals = folder` (gitignored `demo-kit.txt`; never commit sample paths or audio) |
-| `tools/Render.cpp` | `vocanal_render in.wav out.wav [preset=name] [id=value ...] [order=...] [render=0|1] [bpm=140] [tail=0] [learn=1]`: offline render through the chain with a running transport, latency removed; `learn=1` first plays the file looped (up to 30 s) and holds what CLEAN/COMP/DE-ESS learn, like the processor's latch, so a render matches a bounce after the plugin has heard the take (before/after WAVs; mp3 first through `afconvert`/`ffmpeg`) |
-| `tools/Bench.cpp` | `vocanal_bench [seconds]`: average load and worst block per rate and block size, with and without reorders; exit 1 over budget (48 kHz, 32/64 blocks: average ≤ 25 %, worst ≤ 50 % of the period) |
-| `tools/Snapshot.cpp` | `vocanal_snapshot <dir> [state ...]`: renders the editor offscreen to PNGs (rest, busy, learning, off, edited, hover, nosc, drag, presets, presetmore, saveas, preset, cleanmanual, `panel_<module>`); self-tests `dialtest`, `dndtest`, `presettest`, `audit`; `bench` times the paints. `SNAP_SCALE`, `SNAP_SECONDS`, `SNAP_PARAMS`, `SNAP_STOP`, `SNAP_HOVER` |
+| `tools/Render.cpp` | `voxal_render in.wav out.wav [preset=name] [id=value ...] [order=...] [render=0|1] [bpm=140] [tail=0] [learn=1]`: offline render through the chain with a running transport, latency removed; `learn=1` first plays the file looped (up to 30 s) and holds what CLEAN/COMP/DE-ESS learn, like the processor's latch, so a render matches a bounce after the plugin has heard the take (before/after WAVs; mp3 first through `afconvert`/`ffmpeg`) |
+| `tools/Bench.cpp` | `voxal_bench [seconds]`: average load and worst block per rate and block size, with and without reorders; exit 1 over budget (48 kHz, 32/64 blocks: average ≤ 25 %, worst ≤ 50 % of the period) |
+| `tools/Snapshot.cpp` | `voxal_snapshot <dir> [state ...]`: renders the editor offscreen to PNGs (rest, busy, learning, off, edited, hover, nosc, drag, presets, presetmore, saveas, preset, cleanmanual, `panel_<module>`); self-tests `dialtest`, `dndtest`, `presettest`, `audit`; `bench` times the paints. `SNAP_SCALE`, `SNAP_SECONDS`, `SNAP_PARAMS`, `SNAP_STOP`, `SNAP_HOVER` |
 
 ## For AI Agents
 
 ### Working In This Directory
-- Core loop (seconds): `cmake -B build-core -G Ninja -DCMAKE_BUILD_TYPE=Release -DVOCANAL_BUILD_PLUGIN=OFF -DFETCHCONTENT_SOURCE_DIR_CATCH2=$HOME/Projects/psysynth/build-core/_deps/catch2-src && cmake --build build-core && ./build-core/vocanal_tests`
+- Core loop (seconds): `cmake -B build-core -G Ninja -DCMAKE_BUILD_TYPE=Release -DVOXAL_BUILD_PLUGIN=OFF -DFETCHCONTENT_SOURCE_DIR_CATCH2=$HOME/Projects/psysynth/build-core/_deps/catch2-src && cmake --build build-core && ./build-core/voxal_tests`
 - Full plugin: add `-DFETCHCONTENT_SOURCE_DIR_JUCE=$HOME/Projects/open_music_analyzer/plugin/third_party/JUCE` (FetchContent can't download in the sandbox).
 - Never include JUCE from `src/core`. New `.cpp` files go into `CMakeLists.txt` by hand.
 
@@ -67,7 +67,7 @@ Invariants:
 - State copy: big buffers are `RingBuffer`s listed by `rings()` (same sizes and order in both instances). Everything else goes through `copySmallState()`. No pointer into a module's own storage may live in copied state.
 
 ### Rules the code keeps
-- **Parameter ids, choice lists and module ids are the save format.** Append only; bump the version when a meaning changes. From v0.1.1 on, sessions and presets saved with a release must keep loading (v0.1.0 used other state and preset tags; it was never used).
+- **Parameter ids, choice lists and module ids are the save format.** Append only; bump the version when a meaning changes. From the first VoxAl release on, sessions and presets saved with a release must keep loading (the releases under the old name used other codes, state and preset tags; nobody used them).
 - **The order is a ValueTree property**, `order = "clean,breath,..."`, not a host parameter: 11! orders don't fit a float-backed int, and a list loads tolerantly when a module is added. The packed atomic is the truth. Unknown ids are skipped; a missing module goes after its nearest default predecessor.
 - **Undo is psysynth-style snapshot history**, pushed on gesture end, card drop, preset load and session load. **Never give the APVTS an UndoManager**: it would record host automation.
 - **Presets, undo and session loads are transactions** (`Change`, `openChanges` before `patchEpoch`). While a transaction is open the audio thread holds the last whole sound (at most 1 s), then crossfades: A keeps the old knobs, B fades in on the new ones.
@@ -75,7 +75,7 @@ Invariants:
 - **The duck key is delayed by the latency upstream of the reading module's slot**, so the key lines up with the voice that module hears.
 
 ### Testing Requirements
-- After core changes, `./build-core/vocanal_tests` must pass. It covers:
+- After core changes, `./build-core/voxal_tests` must pass. It covers:
   - bit-exact rest at 44.1/48/96 kHz;
   - the latency in every one of the 110 single moves;
   - no click across every move, with a control test proving the detector catches a torn echo;
@@ -87,16 +87,16 @@ Invariants:
   - `[dsp]` the copied primitives; `[shift]` rest, interval, formants, loudness, latency honesty, block invariance, state copy, clicks; `[smooth]` rest, min-phase phase (< 0.05 rad), noise and broad tone left alone, sine and ring cuts, Sharp widths, lookahead/attack order, Listen, copies, clicks.
 - Every module has its own `[clean]`/`[breath]`/`[comp]`/`[deess]`/`[warmth]`/`[air]`/`[radio]`/`[double]`/`[delay]`/`[reverb]` cases: rest bit-exact, the plan's targets, negative controls, block invariance, state copy, clicks.
 - CPU note: during a reorder fade both copies of the suffix run on the same stage schedule, so at 192 kHz with 32-sample blocks a block can overrun (~150 %); 48 kHz stays under 25 %.
-- After DSP changes, run `./build-core/vocanal_bench` (exit 0 = within budget).
+- After DSP changes, run `./build-core/voxal_bench` (exit 0 = within budget).
 - `[sweep]`: every hero knob automated 0-100-0 % in the full chain (over Psy Lead) without a strong click; each one-knob module holds the loudness within 1.5 LU at 25-100 %.
 - `[presets]`: every factory sound finite, under 0 dBFS, within 1 LU of the dry voice, without strong clicks; swaps between neighbours click free; Init bit-exact.
 - After UI changes, run the snapshot loop and read the PNGs, plus `dialtest dndtest presettest audit` (exit code = failures).
-- Before a release: `auval -v aufx Vcnl Jgru` and pluginval at strictness 5 on both formats. The AU warning "Disabling non-main buses failed" is harmless (the sidechain can't be switched off).
+- Before a release: `auval -v aufx Voxl Jgru` and pluginval at strictness 5 on both formats. The AU warning "Disabling non-main buses failed" is harmless (the sidechain can't be switched off).
 
 ### Common Patterns
 - Namespaces: `voc` (core), `voc::dsp` (primitives), `theme` (UI tokens). Plugin/UI classes are global.
 - JUCE-style formatting: space before call parens `foo (x)`, 4-space indent, braces on their own line.
-- **Look:** night sheet `#131211`, ink `#ECE7DB`, accent **ultraviolet `#C4A4FE`**. It means "what VocAnal is doing to the voice right now" (removed bands, gain reduction, acting knob rings); a module at rest steps back to the inks. IBM Plex Sans Condensed + Plex Mono, flat, 2 px radius.
+- **Look:** night sheet `#131211`, ink `#ECE7DB`, accent **ultraviolet `#C4A4FE`**. It means "what VoxAl is doing to the voice right now" (removed bands, gain reduction, acting knob rings); a module at rest steps back to the inks. IBM Plex Sans Condensed + Plex Mono, flat, 2 px radius.
 
 ### Clean room
 - Valhalla Delay / VintageVerb (official installs): black-box measurement only.

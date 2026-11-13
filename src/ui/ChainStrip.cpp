@@ -16,7 +16,7 @@ namespace
 
 // ---- ModuleCard -------------------------------------------------------------------------
 
-ModuleCard::ModuleCard (ChainStrip& s, VocAnalProcessor& p, ModuleId m)
+ModuleCard::ModuleCard (ChainStrip& s, VoxAlProcessor& p, ModuleId m)
     : strip (s), id (m),
       dial (p.param (modules::info (m).hero), modules::name (m),
             modules::name (m) + theme::dot + juce::String (juce::CharPointer_UTF8 (modules::info (m).heroHelp))),
@@ -169,7 +169,7 @@ void ModuleCard::mouseUp (const juce::MouseEvent& e)
 
 // ---- ChainStrip ---------------------------------------------------------------------------
 
-ChainStrip::ChainStrip (VocAnalProcessor& p) : proc (p)
+ChainStrip::ChainStrip (VoxAlProcessor& p) : proc (p)
 {
     setOpaque (true);
     for (int m = 0; m < voc::kNumModules; ++m)

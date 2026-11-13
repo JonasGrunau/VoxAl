@@ -7,11 +7,11 @@
 #include <optional>
 #include <vector>
 
-class VocAnalProcessor;
+class VoxAlProcessor;
 
 // The presets the bar in the masthead steps through: the factory sounds
 // (read-only data from the core, src/core/fx/Presets.h), then the user's own,
-// XML files in ~/Documents/VocAnal/Presets/*.vocanal (the folder is made on
+// XML files in ~/Documents/VoxAl/Presets/*.voxal (the folder is made on
 // the first save). A user preset holds the preset-flagged parameters, the
 // order and a version; never a learned value (those belong to the take).
 //
@@ -26,7 +26,7 @@ class VocAnalProcessor;
 class PresetManager
 {
 public:
-    explicit PresetManager (VocAnalProcessor& p);
+    explicit PresetManager (VoxAlProcessor& p);
 
     struct Entry
     {
@@ -62,11 +62,11 @@ public:
     // A name nobody has yet: `base`, else `base 2`, `base 3`...
     juce::String freeName (const juce::String& base) const;
 
-    static juce::File folder();   // VOCANAL_PRESET_FOLDER, if set, moves it (tests, the snapshot tool)
-    static constexpr const char* kExtension = ".vocanal";
+    static juce::File folder();   // VOXAL_PRESET_FOLDER, if set, moves it (tests, the snapshot tool)
+    static constexpr const char* kExtension = ".voxal";
     static constexpr int kVersion = 1;
-    static bool write (const juce::File& f, const VocAnalSound& s, const juce::String& name);
-    static std::optional<VocAnalSound> read (const juce::File& f, juce::String* nameOut = nullptr);
+    static bool write (const juce::File& f, const VoxAlSound& s, const juce::String& name);
+    static std::optional<VoxAlSound> read (const juce::File& f, juce::String* nameOut = nullptr);
     static juce::File fileFor (const juce::String& name);
 
     // Which preset is current, for the undo history: a step restores it with
@@ -76,7 +76,7 @@ public:
         juce::String name;
         int factory = -1;
         juce::File file;
-        std::optional<VocAnalSound> reference;
+        std::optional<VoxAlSound> reference;
         bool storedEdited = false;
     };
     Current current() const;
@@ -87,16 +87,16 @@ public:
     void loadFrom (const juce::ValueTree& state);   // message thread, after the parameters
 
 private:
-    bool same (const VocAnalSound& a, const VocAnalSound& b) const;
-    void setCurrent (const juce::String& name, int factory, const juce::File& f, std::optional<VocAnalSound> ref);
-    bool apply (const VocAnalSound& s, const juce::String& name, int factory, const juce::File& f);
+    bool same (const VoxAlSound& a, const VoxAlSound& b) const;
+    void setCurrent (const juce::String& name, int factory, const juce::File& f, std::optional<VoxAlSound> ref);
+    bool apply (const VoxAlSound& s, const juce::String& name, int factory, const juce::File& f);
 
-    VocAnalProcessor& proc;
+    VoxAlProcessor& proc;
     mutable juce::CriticalSection lock;
     juce::String currentName { "Init" };
     int currentFactory = 0;
     juce::File currentFile;
-    std::optional<VocAnalSound> reference;   // none: a session's preset we can't find any more
+    std::optional<VoxAlSound> reference;   // none: a session's preset we can't find any more
     bool storedEdited = false;               // then this says whether it was edited
     uint32_t gen = 0;
 };

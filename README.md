@@ -1,8 +1,8 @@
-# VocAnal
+# VoxAl
 
 A whole vocal chain in one plugin, built for psytrance vocals: clean-up, de-breath, compression, saturation, de-essing, air, a radio voice, a doubler, pitch and formant shifting, a ducked tempo delay and a reverb. Most modules are one knob: the plugin finds what to fix and the knob says how much. Drag the cards into any order; the default order is the one a mix engineer would patch.
 
-![VocAnal with the Psy Lead preset on the synthetic voice](docs/screenshot.png)
+![VoxAl with the Psy Lead preset on the synthetic voice](docs/screenshot.png)
 
 *v0.1.2: installers for macOS (signed and notarized) and Windows (unsigned) under [Releases](../../releases/latest).* Every module works, with ten factory presets; how it sounds has only been measured, not yet heard in a DAW.
 
@@ -19,7 +19,7 @@ VST3 and Audio Unit for macOS (universal), VST3 for Windows. JUCE 8. An optional
 | Module | Knob | What it does |
 |--------|------|--------------|
 | **CLEAN** | **Clean** | Takes out what a voice doesn't need below its body: rumble under the lowest note, a boomy or muddy resonance that stays at one pitch whatever you sing, and the thump of a plosive. 0 = off. |
-| | **Focus** | Auto: VocAnal listens for 6 s of voice, then holds what it learned (the corner and the two cuts show in the panel). Manual: the values stay where you set them. **Re-learn** listens again. |
+| | **Focus** | Auto: VoxAl listens for 6 s of voice, then holds what it learned (the corner and the two cuts show in the panel). Manual: the values stay where you set them. **Re-learn** listens again. |
 | | **High-Pass** | Switches the rumble filter on or off (it sits at 0.7 × the voice's lowest notes). |
 | **BREATH** | **Breath** | Turns breaths down, up to 24 dB, and nothing else: quiet singing, a soft /h/ and the ends of words stay. 0 = off. |
 | | **Listen** | Plays only what Breath takes away. |
@@ -65,7 +65,7 @@ VST3 and Audio Unit for macOS (universal), VST3 for Windows. JUCE 8. An optional
 
 ## Presets
 
-Ten factory sounds, each levelled to the dry voice (within 1 LU on the test voice), so stepping through them compares sounds, not loudness: **Clean Lead**, **Psy Lead**, **Spoken Sample**, **Radio Voice**, **Telephone Break** (RADIO moved after DELAY, so the echoes come down the line too), **Wide Chant**, **Intimate**, **Dub Throw**, **Alien**, **Upfront Hook**, plus **Init**. ◂ ▸ step through them and then your own; **SAVE** and the **⋯** menu save, rename and delete yours (`~/Documents/VocAnal/Presets/*.vocanal`). A preset never carries what CLEAN, COMP and DE-ESS learned from your take, and **MIX LOCK** keeps the Mix where you set it.
+Ten factory sounds, each levelled to the dry voice (within 1 LU on the test voice), so stepping through them compares sounds, not loudness: **Clean Lead**, **Psy Lead**, **Spoken Sample**, **Radio Voice**, **Telephone Break** (RADIO moved after DELAY, so the echoes come down the line too), **Wide Chant**, **Intimate**, **Dub Throw**, **Alien**, **Upfront Hook**, plus **Init**. ◂ ▸ step through them and then your own; **SAVE** and the **⋯** menu save, rename and delete yours (`~/Documents/VoxAl/Presets/*.voxal`). A preset never carries what CLEAN, COMP and DE-ESS learned from your take, and **MIX LOCK** keeps the Mix where you set it.
 
 Knobs: drag up or down (Shift for fine steps) or use the wheel; double-click a knob to reset it to its default; double-click the value under it to type one.
 
@@ -95,14 +95,14 @@ to use a local checkout.
 The DSP doesn't depend on JUCE and builds in seconds:
 
 ```sh
-cmake -B build-core -G Ninja -DCMAKE_BUILD_TYPE=Release -DVOCANAL_BUILD_PLUGIN=OFF
+cmake -B build-core -G Ninja -DCMAKE_BUILD_TYPE=Release -DVOXAL_BUILD_PLUGIN=OFF
 cmake --build build-core
-./build-core/vocanal_tests
+./build-core/voxal_tests
 ```
 
 ### UI snapshots
 
-`build/vocanal_snapshot_artefacts/Release/vocanal_snapshot <dir> [state ...]`
+`build/voxal_snapshot_artefacts/Release/voxal_snapshot <dir> [state ...]`
 renders the editor to PNGs with the synthetic voice playing through it, no
 DAW needed: every detail panel, a card mid-drag, the preset menu, a factory
 preset playing (`preset`, the screenshot above at `SNAP_SCALE=2
@@ -113,13 +113,13 @@ self-tests (drag and drop, the preset manager, help lines that fit);
 ### Offline renders and the CPU bench
 
 ```sh
-./build-core/vocanal_render in.wav out.wav shift_mix=100 shift_pitch=-12
-./build-core/vocanal_render in.wav out.wav preset="Dub Throw" tail=4
-./build-core/vocanal_bench
+./build-core/voxal_render in.wav out.wav shift_mix=100 shift_pitch=-12
+./build-core/voxal_render in.wav out.wav preset="Dub Throw" tail=4
+./build-core/voxal_bench
 ```
 
-`vocanal_render` runs a WAV through the chain with any parameter (ids as in
-`src/core/fx/Params.h`), at Render Quality, latency removed. `vocanal_bench`
+`voxal_render` runs a WAV through the chain with any parameter (ids as in
+`src/core/fx/Params.h`), at Render Quality, latency removed. `voxal_bench`
 prints the load per sample rate and block size.
 
 ### Trying it without a DAW
@@ -130,7 +130,7 @@ prints the load per sample rate and block size.
 ```
 
 `start.sh` builds and opens the demo host: a dry voice through the plugin,
-looped, nothing else playing. **VOCANAL** plays the plugin's output, **DRY**
+looped, nothing else playing. **VOXAL** plays the plugin's output, **DRY**
 the voice as it went in, lined up with it for an A/B; space plays and stops.
 The plugin gets a looping transport at 140 BPM, so the delay's tempo sync
 works as in a DAW.

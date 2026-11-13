@@ -1,7 +1,7 @@
 // REVERB: rest, decay per band and per mode, level, colour, stereo,
 // modulation, pre-delay, Size, cuts, duck, the spill, clicks, blocks, state
 // copies and rates. Targets: the plan's [reverb] list and the black-box
-// measurements in memory (vocanal-measurement-targets), as INFO.
+// measurements in memory (voxal-measurement-targets), as INFO.
 #include "SynthVoice.h"
 #include "TestUtil.h"
 #include "fx/Reverb.h"

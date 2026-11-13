@@ -61,7 +61,7 @@ double VoiceSpectrum::pointHz (int i) noexcept
     return kLow * std::pow (kHigh / kLow, (double) i / (kPoints - 1));
 }
 
-VoiceSpectrum::VoiceSpectrum (VocAnalProcessor& p) : proc (p)
+VoiceSpectrum::VoiceSpectrum (VoxAlProcessor& p) : proc (p)
 {
     setOpaque (true);
     inDb.fill ((float) kFloorDb);
@@ -159,7 +159,7 @@ void VoiceSpectrum::responseTarget (Target& t, std::vector<Marker>& mk) const
     const auto s = proc.settings();
     const auto& d = proc.display();
     const auto engaged = [&] (ModuleId m) { return d.engaged[(size_t) m].load (std::memory_order_relaxed); };
-    using D = VocAnalProcessor::Display;
+    using D = VoxAlProcessor::Display;
     t = {};
     auto& out = t.cut;   // CLEAN, SMOOTH and DE-ESS only ever take
     mk.clear();
@@ -510,7 +510,7 @@ void VoiceSpectrum::draw (juce::Graphics& g)
         {
             g.setFont (text (size::empty));
             g.setColour (col::inkSoft);
-            g.drawText (juce::String (juce::CharPointer_UTF8 ("Play a voice through VocAnal \xe2\x80\x94 it shows up here.")),
+            g.drawText (juce::String (juce::CharPointer_UTF8 ("Play a voice through VoxAl \xe2\x80\x94 it shows up here.")),
                         p.withTrimmedTop (p.getHeight() * 0.45f), juce::Justification::centredTop, false);
         }
     }

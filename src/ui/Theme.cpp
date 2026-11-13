@@ -1,6 +1,6 @@
 #include "Theme.h"
 
-#include "BinaryData.h"   // juce_add_binary_data (vocanal_assets SOURCES resources/fonts/IBMPlex*.ttf)
+#include "BinaryData.h"   // juce_add_binary_data (voxal_assets SOURCES resources/fonts/IBMPlex*.ttf)
 
 // House style implementation. Nothing in this file is per plugin: the palette
 // lives in Theme.h, the layout of the product's own sections in its editor.

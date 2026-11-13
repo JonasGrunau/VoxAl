@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Builds the macOS installer from a finished plugin build.
 # Usage: packaging/macos/build-pkg.sh <artefacts-dir> <version> <out.pkg>
-#   e.g. packaging/macos/build-pkg.sh build/VocAnal_artefacts/Release 1.2.0 dist/VocAnal-1.2.0-macOS.pkg
+#   e.g. packaging/macos/build-pkg.sh build/VoxAl_artefacts/Release 1.2.0 dist/VoxAl-1.2.0-macOS.pkg
 #
 # One component package per format (VST3, AU), wrapped in a product archive
 # whose "Customize" page lets the user untick either. The bundles go in as
@@ -14,7 +14,7 @@ ARTEFACTS=$1
 VERSION=$2
 OUT=$3
 
-ID=de.grunau.vocanal
+ID=de.grunau.voxal
 WORK=$(mktemp -d)
 trap 'rm -rf "$WORK"' EXIT
 
@@ -40,21 +40,21 @@ component()
 }
 
 mkdir -p "$WORK/pkgs"
-component vst3 "$ARTEFACTS/VST3/VocAnal.vst3"      /Library/Audio/Plug-Ins/VST3
-component au   "$ARTEFACTS/AU/VocAnal.component"   /Library/Audio/Plug-Ins/Components
+component vst3 "$ARTEFACTS/VST3/VoxAl.vst3"      /Library/Audio/Plug-Ins/VST3
+component au   "$ARTEFACTS/AU/VoxAl.component"   /Library/Audio/Plug-Ins/Components
 # STANDALONE (PsyBox): also ship the app, unticked by default (see the choice below).
-# component app  "$ARTEFACTS/Standalone/VocAnal.app"   /Applications
+# component app  "$ARTEFACTS/Standalone/VoxAl.app"   /Applications
 
 # STANDALONE (PsyBox) additions to the XML below:
 #   in <choices-outline>:  <line choice="app"/>
-#   after the au choice:   <choice id="app" title="Standalone app" description="/Applications/VocAnal.app" start_selected="false">
+#   after the au choice:   <choice id="app" title="Standalone app" description="/Applications/VoxAl.app" start_selected="false">
 #                              <pkg-ref id="$ID.app"/>
 #                          </choice>
 #   after the pkg-refs:    <pkg-ref id="$ID.app" version="$VERSION">app.pkg</pkg-ref>
 cat > "$WORK/distribution.xml" <<EOF
 <?xml version="1.0" encoding="utf-8"?>
 <installer-gui-script minSpecVersion="2">
-    <title>VocAnal $VERSION</title>
+    <title>VoxAl $VERSION</title>
     <options customize="allow" require-scripts="false" hostArchitectures="arm64,x86_64"/>
     <domains enable_localSystem="true"/>
     <allowed-os-versions><os-version min="11.0"/></allowed-os-versions>
@@ -62,10 +62,10 @@ cat > "$WORK/distribution.xml" <<EOF
         <line choice="vst3"/>
         <line choice="au"/>
     </choices-outline>
-    <choice id="vst3" title="VST3 plug-in" description="/Library/Audio/Plug-Ins/VST3/VocAnal.vst3">
+    <choice id="vst3" title="VST3 plug-in" description="/Library/Audio/Plug-Ins/VST3/VoxAl.vst3">
         <pkg-ref id="$ID.vst3"/>
     </choice>
-    <choice id="au" title="Audio Unit" description="/Library/Audio/Plug-Ins/Components/VocAnal.component">
+    <choice id="au" title="Audio Unit" description="/Library/Audio/Plug-Ins/Components/VoxAl.component">
         <pkg-ref id="$ID.au"/>
     </choice>
     <pkg-ref id="$ID.vst3" version="$VERSION">vst3.pkg</pkg-ref>

@@ -2,14 +2,14 @@
 // DAW, a window or screen-recording permission. Read the PNGs, critique,
 // fix, render again.
 //
-//   vocanal_snapshot <out-dir> [state ...]
+//   voxal_snapshot <out-dir> [state ...]
 //
 // Each state is a fresh processor with some parameters set, the synthetic
 // voice (tests/SynthVoice.h, optionally with its faults: a boom, a harsh ring,
 // loud esses) on the main input and the built-in psytrance loop on the Duck
 // Key sidechain, played for a few seconds with a running 145 BPM transport,
 // the editor ticked like its timer would (~30 Hz), then a PNG:
-// <out-dir>/vocanal_<state>.png. States (default: every PNG state):
+// <out-dir>/voxal_<state>.png. States (default: every PNG state):
 //   rest busy learning off edited hover nosc drag presets presetmore saveas preset
 //   panel_<module> for each of the twelve modules, cleanmanual
 // Self-tests (print PASS / FAIL lines, exit code = failures; no PNG):
@@ -34,7 +34,7 @@
 //   SNAP_STOP=1                      stop the transport before the shot
 //   SNAP_HOVER=<componentID>         send mouseEnter to that component before the shot
 //
-// Build: the plugin's UI sources compiled directly (VOCANAL_UI_SOURCES in
+// Build: the plugin's UI sources compiled directly (VOXAL_UI_SOURCES in
 // CMakeLists.txt), with the JucePlugin_* macros the processor uses defined
 // on the target.
 
@@ -73,15 +73,15 @@ namespace
 
     struct Run
     {
-        VocAnalProcessor& proc;
-        VocAnalEditor& editor;
+        VoxAlProcessor& proc;
+        VoxAlEditor& editor;
     };
 
     void pump (int ms) { juce::MessageManager::getInstance()->runDispatchLoopUntil (ms); }
 
     const char* env (const char* name) { return std::getenv (name); }
 
-    void setPlain (VocAnalProcessor& p, const juce::String& id, float plain)
+    void setPlain (VoxAlProcessor& p, const juce::String& id, float plain)
     {
         if (auto* prm = p.apvts.getParameter (id))
             prm->setValueNotifyingHost (prm->convertTo0to1 (plain));
@@ -162,7 +162,7 @@ namespace
     // Plays the voice (main) and the beat (sidechain, when there is one) in
     // 512-sample blocks with the transport running from `position` on,
     // ticking the editor about 30 times a second like its timer.
-    void play (VocAnalProcessor& p, VocAnalEditor& ed, TempoPlayHead& head, const Material& m, double fs, double seconds, size_t& position)
+    void play (VoxAlProcessor& p, VoxAlEditor& ed, TempoPlayHead& head, const Material& m, double fs, double seconds, size_t& position)
     {
         const int channels = std::max (2, p.getTotalNumInputChannels());
         juce::AudioBuffer<float> buf (std::max (channels, p.getTotalNumOutputChannels()), 512);
@@ -191,7 +191,7 @@ namespace
         position = total;
     }
 
-    void stopTransport (VocAnalProcessor& p, TempoPlayHead& head)
+    void stopTransport (VoxAlProcessor& p, TempoPlayHead& head)
     {
         head.playing = false;
         juce::AudioBuffer<float> buf (std::max (2, p.getTotalNumInputChannels()), 512);
@@ -328,7 +328,7 @@ namespace
         c.mouseDoubleClick (eventFor (c, at, at, false, 2));
     }
 
-    int dialTest (VocAnalProcessor& proc, VocAnalEditor& ed)
+    int dialTest (VoxAlProcessor& proc, VoxAlEditor& ed)
     {
         Checks check;
         auto& dial = ed.chain().card (ModuleId::comp).hero();
@@ -366,7 +366,7 @@ namespace
         return check.failures;
     }
 
-    int dndTest (VocAnalProcessor& proc, VocAnalEditor& ed)
+    int dndTest (VoxAlProcessor& proc, VoxAlEditor& ed)
     {
         Checks check;
         auto& strip = ed.chain();
@@ -438,10 +438,10 @@ namespace
         Checks check;
         const auto folder = scratch.getChildFile ("presets_test");
         folder.deleteRecursively();
-        setenv ("VOCANAL_PRESET_FOLDER", folder.getFullPathName().toRawUTF8(), 1);
-        check (PresetManager::folder() == folder, "VOCANAL_PRESET_FOLDER moves the folder");
+        setenv ("VOXAL_PRESET_FOLDER", folder.getFullPathName().toRawUTF8(), 1);
+        check (PresetManager::folder() == folder, "VOXAL_PRESET_FOLDER moves the folder");
 
-        VocAnalProcessor proc;
+        VoxAlProcessor proc;
         proc.setRateAndBufferSizeDetails (fs, 512);
         proc.prepareToPlay (fs, 512);
         auto& pm = proc.presets;
@@ -459,7 +459,7 @@ namespace
         const auto savedOrder = voc::Order().moved (0, 5);
         proc.setOrder (savedOrder);
         auto r = pm.saveAs ("Snap Lead");
-        const auto file = folder.getChildFile ("Snap Lead.vocanal");
+        const auto file = folder.getChildFile ("Snap Lead.voxal");
         check (r.wasOk() && file.existsAsFile(), "SAVE AS writes " + file.getFileName() + " (the folder made on the first save)");
         check (pm.name() == "Snap Lead" && pm.isUser() && ! pm.isEdited(), "the saved preset is current, yours, not edited");
         const auto xml = juce::XmlDocument::parse (file);
@@ -512,7 +512,7 @@ namespace
         r = pm.saveAs ("Snap Lead");
         check (r.wasOk() && pm.name() == "Snap Lead 2", "SAVE AS with a taken name makes Snap Lead 2");
         r = pm.rename ("Snap Renamed");
-        check (r.wasOk() && folder.getChildFile ("Snap Renamed.vocanal").existsAsFile() && ! folder.getChildFile ("Snap Lead 2.vocanal").exists(),
+        check (r.wasOk() && folder.getChildFile ("Snap Renamed.voxal").existsAsFile() && ! folder.getChildFile ("Snap Lead 2.voxal").exists(),
                "rename moves the file");
         check (pm.factoryIndex() < 0 && pm.name() == "Snap Renamed", "the renamed preset is current");
         const auto factory = voc::factoryPresets();
@@ -535,18 +535,18 @@ namespace
         setPlain (proc, "warmth", 22.f);
         juce::MemoryBlock state;
         proc.getStateInformation (state);
-        VocAnalProcessor other;
+        VoxAlProcessor other;
         other.setStateInformation (state.getData(), (int) state.getSize());
         check (other.presets.name() == "Snap Lead" && other.presets.isEdited() && other.presets.isUser(), "a session brings back Snap Lead *");
         setPlain (other, "warmth", 0.f);
         check (! other.presets.isEdited(), "and knows what the preset was: back to it, no *");
 
         folder.deleteRecursively();
-        unsetenv ("VOCANAL_PRESET_FOLDER");
+        unsetenv ("VOXAL_PRESET_FOLDER");
         return check.failures;
     }
 
-    int audit (VocAnalEditor& ed)
+    int audit (VoxAlEditor& ed)
     {
         const float room = ed.footerHelpWidth();
         const auto f = theme::mono (theme::size::help);
@@ -586,7 +586,7 @@ int main (int argc, char** argv)
     const float scale = env ("SNAP_SCALE") != nullptr ? juce::String (env ("SNAP_SCALE")).getFloatValue() : 2.f;
     // User presets go to a scratch folder, so no state reads or writes the real one.
     const auto presetScratch = outDir.getChildFile ("presets");
-    setenv ("VOCANAL_PRESET_FOLDER", presetScratch.getFullPathName().toRawUTF8(), 1);
+    setenv ("VOXAL_PRESET_FOLDER", presetScratch.getFullPathName().toRawUTF8(), 1);
 
     TempoPlayHead head;
     head.bpm = 145.0;
@@ -598,7 +598,7 @@ int main (int argc, char** argv)
         if (name == "presettest")
         {
             failures += presetTest (outDir, fs);
-            setenv ("VOCANAL_PRESET_FOLDER", presetScratch.getFullPathName().toRawUTF8(), 1);
+            setenv ("VOXAL_PRESET_FOLDER", presetScratch.getFullPathName().toRawUTF8(), 1);
             continue;
         }
         const State* state = nullptr;
@@ -616,7 +616,7 @@ int main (int argc, char** argv)
         if (state == nullptr) { std::printf ("unknown state '%s'\n", name.toRawUTF8()); ++failures; continue; }
 
         // A fresh instance per state: nothing carries over between shots.
-        VocAnalProcessor proc;
+        VoxAlProcessor proc;
         if (state->noSidechain)
             if (auto* bus = proc.getBus (true, 1)) bus->enable (false);
         if (! state->preset.empty()) proc.presets.loadFactory (voc::factoryIndexOf (state->preset));
@@ -633,8 +633,8 @@ int main (int argc, char** argv)
         proc.setPlayHead (&head);
         proc.setRateAndBufferSizeDetails (fs, 512);
         proc.prepareToPlay (fs, 512);
-        std::unique_ptr<VocAnalEditor> editor (dynamic_cast<VocAnalEditor*> (proc.createEditor()));
-        if (editor == nullptr) { std::printf ("createEditor() did not return a VocAnalEditor\n"); return 1; }
+        std::unique_ptr<VoxAlEditor> editor (dynamic_cast<VoxAlEditor*> (proc.createEditor()));
+        if (editor == nullptr) { std::printf ("createEditor() did not return a VoxAlEditor\n"); return 1; }
 
         pump (50);
         const auto m = material (fs, state->faults);
@@ -691,7 +691,7 @@ int main (int argc, char** argv)
         }
 
         const auto img = editor->createComponentSnapshot (editor->getLocalBounds(), true, scale);
-        const auto file = outDir.getChildFile ("vocanal_" + name + ".png");
+        const auto file = outDir.getChildFile ("voxal_" + name + ".png");
         file.deleteFile();
         juce::FileOutputStream os (file);
         juce::PNGImageFormat().writeImageToStream (img, os);

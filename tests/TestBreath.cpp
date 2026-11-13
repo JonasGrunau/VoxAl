@@ -563,7 +563,7 @@ TEST_CASE ("Breath: the probe shows the gate and what it takes off", "[breath]")
 }
 
 // Not run by default: what the module alone costs, as a share of one core
-// (vocanal_tests "[.breath-bench]").
+// (voxal_tests "[.breath-bench]").
 TEST_CASE ("Breath: CPU share of one core", "[.breath-bench]")
 {
     for (double fs : { 44100.0, 48000.0, 96000.0, 192000.0 })
@@ -589,7 +589,7 @@ TEST_CASE ("Breath: CPU share of one core", "[.breath-bench]")
 }
 
 // Not run by default: the detector's margins across voices, rates and breath
-// levels, for tuning (vocanal_tests "[.breath-tune]").
+// levels, for tuning (voxal_tests "[.breath-tune]").
 TEST_CASE ("Breath: robustness table", "[.breath-tune]")
 {
     struct Var { const char* what; double fs; bool female; double f0; double breathDb; bool breaths; };

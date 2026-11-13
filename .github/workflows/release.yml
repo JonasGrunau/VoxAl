@@ -8,8 +8,8 @@
 #
 # Template notes ({{...}} are placeholders; ${{ ... }} with spaces are GitHub
 # expressions and stay as they are):
-# - INSTRUMENT / STANDALONE (PsyBox): add Standalone/VocAnal.app to BUNDLES,
-#   VocAnal_Standalone to both Build steps, and use `auval -v aumu ...`.
+# - INSTRUMENT / STANDALONE (PsyBox): add Standalone/VoxAl.app to BUNDLES,
+#   VoxAl_Standalone to both Build steps, and use `auval -v aumu ...`.
 name: Release
 
 on:
@@ -42,8 +42,8 @@ jobs:
     runs-on: macos-latest
     env:
       VERSION: ${{ needs.version.outputs.version }}
-      OUT: build/VocAnal_artefacts/Release
-      BUNDLES: VST3/VocAnal.vst3 AU/VocAnal.component
+      OUT: build/VoxAl_artefacts/Release
+      BUNDLES: VST3/VoxAl.vst3 AU/VoxAl.component
       # Signing and notarization run when the certificate secret is set (README > Releases).
       SIGN: ${{ secrets.MACOS_CERTIFICATES_P12 != '' }}
     steps:
@@ -53,29 +53,29 @@ jobs:
         run: >
           cmake -B build -DCMAKE_BUILD_TYPE=Release
           -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64"
-          -DVOCANAL_VERSION=${{ needs.version.outputs.numeric }}
-          -DVOCANAL_BUILD_TESTS=ON -DVOCANAL_COPY_PLUGIN=OFF
+          -DVOXAL_VERSION=${{ needs.version.outputs.numeric }}
+          -DVOXAL_BUILD_TESTS=ON -DVOXAL_COPY_PLUGIN=OFF
 
       - name: Build
-        run: cmake --build build --parallel --target VocAnal_VST3 VocAnal_AU vocanal_tests
+        run: cmake --build build --parallel --target VoxAl_VST3 VoxAl_AU voxal_tests
 
       - name: Test
-        run: ./build/vocanal_tests
+        run: ./build/voxal_tests
 
       - name: Validate (pluginval)
         run: |
           curl -fsSL -o pluginval.zip https://github.com/Tracktion/pluginval/releases/latest/download/pluginval_macOS.zip
           ditto -x -k pluginval.zip pluginval
           pluginval/pluginval.app/Contents/MacOS/pluginval --strictness-level 5 --validate-in-process --skip-gui-tests \
-            --validate "$OUT/VST3/VocAnal.vst3"
+            --validate "$OUT/VST3/VoxAl.vst3"
 
       # aufx = kAudioUnitType_Effect. An instrument (kAudioUnitType_MusicDevice) is aumu.
       - name: Validate (auval)
         run: |
           mkdir -p ~/Library/Audio/Plug-Ins/Components
-          ditto "$OUT/AU/VocAnal.component" ~/Library/Audio/Plug-Ins/Components/VocAnal.component
+          ditto "$OUT/AU/VoxAl.component" ~/Library/Audio/Plug-Ins/Components/VoxAl.component
           killall -9 AudioComponentRegistrar 2>/dev/null || true
-          auval -v aufx Vcnl Jgru
+          auval -v aufx Voxl Jgru
 
       - name: Import Developer ID certificates
         if: env.SIGN == 'true'
@@ -113,7 +113,7 @@ jobs:
       - name: Package
         run: |
           [[ "$SIGN" == true ]] || echo "::warning::MACOS_CERTIFICATES_P12 is not set, so the macOS build is not signed"
-          packaging/macos/build-pkg.sh "$OUT" "$VERSION" "dist/VocAnal-$VERSION-macOS.pkg"
+          packaging/macos/build-pkg.sh "$OUT" "$VERSION" "dist/VoxAl-$VERSION-macOS.pkg"
 
       - name: Notarize
         if: env.SIGN == 'true'
@@ -121,7 +121,7 @@ jobs:
           NOTARY_APPLE_ID: ${{ secrets.NOTARY_APPLE_ID }}
           NOTARY_PASSWORD: ${{ secrets.NOTARY_PASSWORD }}
         run: |
-          pkg="dist/VocAnal-$VERSION-macOS.pkg"
+          pkg="dist/VoxAl-$VERSION-macOS.pkg"
           auth=(--apple-id "$NOTARY_APPLE_ID" --password "$NOTARY_PASSWORD" --team-id "$TEAM_ID")
           result=$(xcrun notarytool submit "$pkg" "${auth[@]}" --wait --timeout 1h --output-format json)
           echo "$result"
@@ -137,9 +137,9 @@ jobs:
       - name: Zip plug-ins
         run: |
           mkdir plugins
-          ditto "$OUT/VST3/VocAnal.vst3" plugins/VocAnal.vst3
-          ditto "$OUT/AU/VocAnal.component" plugins/VocAnal.component
-          ditto -c -k plugins "dist/VocAnal-$VERSION-macOS-VST3-AU.zip"
+          ditto "$OUT/VST3/VoxAl.vst3" plugins/VoxAl.vst3
+          ditto "$OUT/AU/VoxAl.component" plugins/VoxAl.component
+          ditto -c -k plugins "dist/VoxAl-$VERSION-macOS-VST3-AU.zip"
 
       - uses: actions/upload-artifact@v7
         with:
@@ -155,28 +155,28 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      # Quoted: PowerShell splits an unquoted -DVOCANAL_VERSION=1.2.0 at the first dot.
+      # Quoted: PowerShell splits an unquoted -DVOXAL_VERSION=1.2.0 at the first dot.
       - name: Configure
         run: >
           cmake -B build -A x64
-          "-DVOCANAL_VERSION=${{ needs.version.outputs.numeric }}"
-          -DVOCANAL_BUILD_TESTS=ON -DVOCANAL_COPY_PLUGIN=OFF
+          "-DVOXAL_VERSION=${{ needs.version.outputs.numeric }}"
+          -DVOXAL_BUILD_TESTS=ON -DVOXAL_COPY_PLUGIN=OFF
 
       - name: Build
-        run: cmake --build build --config Release --parallel --target VocAnal_VST3 vocanal_tests
+        run: cmake --build build --config Release --parallel --target VoxAl_VST3 voxal_tests
 
       - name: Test
-        run: build\Release\vocanal_tests.exe
+        run: build\Release\voxal_tests.exe
 
       - name: Install Inno Setup
         run: choco install innosetup -y --no-progress
 
       - name: Package
         run: |
-          $out = "$PWD\build\VocAnal_artefacts\Release"
-          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DAppVersion=$env:VERSION" "/DArtefacts=$out" "/O$PWD\dist" packaging\windows\VocAnal.iss
+          $out = "$PWD\build\VoxAl_artefacts\Release"
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DAppVersion=$env:VERSION" "/DArtefacts=$out" "/O$PWD\dist" packaging\windows\VoxAl.iss
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          Compress-Archive -Path "$out\VST3\VocAnal.vst3" -DestinationPath "dist\VocAnal-$env:VERSION-Windows-VST3.zip"
+          Compress-Archive -Path "$out\VST3\VoxAl.vst3" -DestinationPath "dist\VoxAl-$env:VERSION-Windows-VST3.zip"
 
       - uses: actions/upload-artifact@v7
         with:
@@ -202,4 +202,4 @@ jobs:
           flags=()
           [[ "$VERSION" == *-* ]] && flags+=(--prerelease)
           gh release create "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" \
-            --verify-tag --title "VocAnal $VERSION" --generate-notes "${flags[@]}"
+            --verify-tag --title "VoxAl $VERSION" --generate-notes "${flags[@]}"

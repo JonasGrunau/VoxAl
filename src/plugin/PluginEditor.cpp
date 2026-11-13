@@ -30,7 +30,7 @@ namespace
     }
 } // namespace
 
-VocAnalEditor::VocAnalEditor (VocAnalProcessor& p)
+VoxAlEditor::VoxAlEditor (VoxAlProcessor& p)
     : AudioProcessorEditor (p), proc (p),
       presets (p),
       undoKey ("Undo", "UNDO" + theme::dot + "Back one step: a knob turn, a card move, a preset, a re-learn."),
@@ -104,20 +104,20 @@ VocAnalEditor::VocAnalEditor (VocAnalProcessor& p)
     startTimerHz (30);
 }
 
-VocAnalEditor::~VocAnalEditor()
+VoxAlEditor::~VoxAlEditor()
 {
     stopTimer();
     juce::PopupMenu::dismissAllActiveMenus();
     setLookAndFeel (nullptr);
 }
 
-void VocAnalEditor::resized()
+void VoxAlEditor::resized()
 {
     sheet.setBounds (0, 0, kWidth, kHeight);
     sheet.setTransform (juce::AffineTransform::scale ((float) getWidth() / kWidth));
 }
 
-void VocAnalEditor::layout()
+void VoxAlEditor::layout()
 {
     using R = juce::Rectangle<float>;
     // Masthead: the meters right-aligned, the preset bar and UNDO / REDO
@@ -151,7 +151,7 @@ void VocAnalEditor::layout()
         panel->setBounds (R (kLeft, kRowY, dX - sheet::kGroupGap - kLeft, layout::kDialH).toNearestInt());
 }
 
-void VocAnalEditor::select (ModuleId m)
+void VoxAlEditor::select (ModuleId m)
 {
     if (strip.selected() != m) strip.setSelected (m);   // calls back here
     for (auto& panel : panels) panel->setVisible (panel->module() == m);
@@ -163,7 +163,7 @@ void VocAnalEditor::select (ModuleId m)
 
 // ---- Footer ----------------------------------------------------------------------------------
 
-juce::String VocAnalEditor::defaultHelp (bool& warn) const
+juce::String VoxAlEditor::defaultHelp (bool& warn) const
 {
     const auto s = proc.settings();
     warn = false;
@@ -187,7 +187,7 @@ juce::String VocAnalEditor::defaultHelp (bool& warn) const
     return acting.joinIntoString (theme::dot) + (acting.size() == 1 ? " acts" : " act") + " on the voice." + hint;
 }
 
-juce::String VocAnalEditor::engineText() const
+juce::String VoxAlEditor::engineText() const
 {
     const double fs = proc.getRate();
     const auto rate = fmt::fixed (fs / 1000.0, std::abs (fs - std::round (fs / 1000.0) * 1000.0) > 1.0 ? 1 : 0) + " kHz";
@@ -202,13 +202,13 @@ juce::String VocAnalEditor::engineText() const
     return rate + theme::dot + q + theme::dot + ms + theme::dot + tempo;
 }
 
-float VocAnalEditor::footerHelpWidth() const
+float VoxAlEditor::footerHelpWidth() const
 {
     // The widest engine state it can show: a fractional rate, no host tempo.
     return theme::footerHelpWidth (juce::String ("88.2 kHz") + theme::dot + "RENDER NORMAL" + theme::dot + "100.0 ms" + theme::dot + "120 BPM (NO HOST)");
 }
 
-void VocAnalEditor::updateFooter()
+void VoxAlEditor::updateFooter()
 {
     bool warn = false;
     const auto next = hover.isNotEmpty() ? hover : message.isNotEmpty() ? message : defaultHelp (warn);
@@ -220,13 +220,13 @@ void VocAnalEditor::updateFooter()
     sheet.repaint (footerArea ((float) kHeight));
 }
 
-void VocAnalEditor::showHelp (const juce::String& line)
+void VoxAlEditor::showHelp (const juce::String& line)
 {
     hover = line;
     updateFooter();
 }
 
-void VocAnalEditor::showMessage (const juce::String& line)
+void VoxAlEditor::showMessage (const juce::String& line)
 {
     message = line;
     messageTicks = 120;   // 4 s at 30 Hz
@@ -234,7 +234,7 @@ void VocAnalEditor::showMessage (const juce::String& line)
     updateFooter();
 }
 
-juce::StringArray VocAnalEditor::allHelpLines() const
+juce::StringArray VoxAlEditor::allHelpLines() const
 {
     juce::StringArray out { kDefaultHelp, kNoSidechain, undoKey.getHelp(), redoKey.getHelp(), output.getHelp(), mix.getHelp(),
                             mixLock.getHelp(), inMeter.help, outMeter.help };
@@ -253,7 +253,7 @@ juce::StringArray VocAnalEditor::allHelpLines() const
 
 // ---- Painting and the tick ------------------------------------------------------------------
 
-void VocAnalEditor::Sheet::paint (juce::Graphics& g)
+void VoxAlEditor::Sheet::paint (juce::Graphics& g)
 {
     auto& ed = editor;
     g.fillAll (col::sheet);
@@ -261,7 +261,7 @@ void VocAnalEditor::Sheet::paint (juce::Graphics& g)
 
     // Wordmark LEFT/RIGHT (BUILD/APP, PHASE/FUCKER) and the sub-line
     // "CATEGORY · MODEL-1 · vX.Y.Z".
-    masthead (g, "VOC", "ANAL", juce::String (juce::CharPointer_UTF8 ("VOCAL CHAIN \xc2\xb7 VO-1 \xc2\xb7 v")) + JucePlugin_VersionString);
+    masthead (g, "VOX", "AL", juce::String (juce::CharPointer_UTF8 ("VOCAL CHAIN \xc2\xb7 VO-1 \xc2\xb7 v")) + JucePlugin_VersionString);
 
     // A, and its legend right-aligned on the tag row.
     sectionTag (g, "A", "Voice", { kLeft, sheet::kFirstTagY });
@@ -315,7 +315,7 @@ void VocAnalEditor::Sheet::paint (juce::Graphics& g)
     footer (g, (float) kHeight, ed.help, ed.rateText, ed.helpWarns);
 }
 
-void VocAnalEditor::tick()
+void VoxAlEditor::tick()
 {
     inMeter.push (proc.takePeak (false));
     outMeter.push (proc.takePeak (true));

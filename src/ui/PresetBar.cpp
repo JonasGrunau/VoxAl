@@ -27,7 +27,7 @@ namespace
     }
 } // namespace
 
-PresetBar::PresetBar (VocAnalProcessor& p)
+PresetBar::PresetBar (VoxAlProcessor& p)
     : proc (p),
       prev ("Previous", "The previous preset: factory ones first, then yours."),
       next ("Next", "The next preset: factory ones first, then yours."),
@@ -204,7 +204,7 @@ void PresetBar::showList()
                          {
                              const auto& e = list[(size_t) (id - kUserBase)];
                              const bool ok = pm.load (e);
-                             if (safe->onMessage) safe->onMessage (ok ? e.name : "Couldn't read " + e.file.getFileName() + ": it isn't a VocAnal preset.");
+                             if (safe->onMessage) safe->onMessage (ok ? e.name : "Couldn't read " + e.file.getFileName() + ": it isn't a VoxAl preset.");
                          }
                          else if (id == kOpenFolderId)
                          {

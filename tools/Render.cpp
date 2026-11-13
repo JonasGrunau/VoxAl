@@ -1,5 +1,5 @@
-// vocanal_render: a WAV through the chain, offline, for before/after files.
-//   vocanal_render in.wav out.wav [preset="Psy Lead"] [id=value ...] [order=clean,breath,...]
+// voxal_render: a WAV through the chain, offline, for before/after files.
+//   voxal_render in.wav out.wav [preset="Psy Lead"] [id=value ...] [order=clean,breath,...]
 //                  [render=0|1] [bpm=140] [tail=0] [learn=1]
 // A factory preset first (Presets.h), then ids and plain values as in the
 // parameter table (Params.h) over it, e.g.
@@ -106,7 +106,7 @@ int main (int argc, char** argv)
 {
     if (argc < 3)
     {
-        std::fprintf (stderr, "usage: vocanal_render in.wav out.wav [preset=name] [id=value ...] [order=...] [render=0|1] [bpm=140] [tail=0]\n");
+        std::fprintf (stderr, "usage: voxal_render in.wav out.wav [preset=name] [id=value ...] [order=...] [render=0|1] [bpm=140] [tail=0]\n");
         return 2;
     }
     Audio in;
